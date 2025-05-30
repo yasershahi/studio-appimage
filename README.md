@@ -6,6 +6,14 @@ This repository contains the build configuration for creating an AppImage of [St
 
 Studio is a desktop application for creating local WordPress environments, powered by WordPress.com and WordPress Playground.
 
+## Important Note
+
+Since Studio does not provide an official Linux package, this AppImage provides a convenient way to run Studio on most Linux distributions. However, please note that you will need to have FUSE installed on your system to run the AppImage. You can install it using your distribution's package manager:
+
+- For Debian/Ubuntu: `sudo apt-get install libfuse2`
+- For Fedora: `sudo dnf install fuse`
+- For Arch Linux: `sudo pacman -S fuse2`
+
 ## Building the AppImage
 
 ### Prerequisites
@@ -48,11 +56,14 @@ This repository includes GitHub Actions workflows that automatically build the A
 - Every pull request to the main branch
 - Manual trigger through the GitHub Actions interface
 
-The built AppImage will be available as an artifact in the GitHub Actions run.
+The built AppImage will be available as an artifact in the GitHub Actions run. You can download it from the [Actions](https://github.com/yasershahi/studio-appimage/actions) page:
+1. Click on the latest successful workflow run
+2. Scroll down to the "Artifacts" section
+3. Download the AppImage file
 
 ## Using the AppImage
 
-1. Download the AppImage from the latest release or build it yourself
+1. Download the AppImage from the [Actions](https://github.com/yasershahi/studio-appimage/actions) page or build it yourself
 2. Make it executable:
    ```bash
    chmod +x Studio-*.AppImage
