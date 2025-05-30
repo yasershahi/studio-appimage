@@ -39,6 +39,9 @@ StartupWMClass=Studio
 MimeType=text/html;
 EOL
 
+# Copy icon to root of AppDir
+cp AppDir/usr/share/icons/hicolor/256x256/apps/com.automattic.Studio.png AppDir/
+
 cat > AppDir/AppRun << EOL
 #!/bin/bash
 SELF=$(readlink -f "$0")
