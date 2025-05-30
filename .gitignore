@@ -1,0 +1,12 @@
+# Exclude studio folder
+studio/
+
+# Common system files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo 
