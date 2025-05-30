@@ -39,6 +39,9 @@ StartupWMClass=Studio
 MimeType=text/html;
 EOL
 
+# Copy icon to AppDir root
+cp assets/studio-app-icon.png AppDir/com.automattic.Studio.png
+
 cat > AppDir/AppRun << EOL
 #!/bin/bash
 SELF=$(readlink -f "$0")
