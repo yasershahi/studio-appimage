@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Studio
+Comment=WordPress.com Studio
+Exec=studio
+Icon=com.automattic.Studio
+Terminal=false
+Type=Application
+Categories=Development;WebDevelopment;
+StartupWMClass=Studio
+MimeType=text/html; 

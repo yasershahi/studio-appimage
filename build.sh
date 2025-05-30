@@ -26,15 +26,17 @@ mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hic
 cp -r out/make/* AppDir/usr/bin/
 
 # Create desktop file
-cat > AppDir/usr/share/applications/studio.desktop << EOL
+cat > AppDir/com.automattic.Studio.desktop << EOL
 [Desktop Entry]
 Name=Studio
 Comment=WordPress.com Studio
 Exec=studio
-Icon=studio
+Icon=com.automattic.Studio
 Terminal=false
 Type=Application
-Categories=Development;
+Categories=Development;WebDevelopment;
+StartupWMClass=Studio
+MimeType=text/html;
 EOL
 
 cat > AppDir/AppRun << EOL
