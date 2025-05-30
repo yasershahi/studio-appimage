@@ -7,9 +7,9 @@ chmod +x appimagetool
 git clone https://github.com/Automattic/studio.git
 cd studio
 npm install
-npm run build
+npm run make
 mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
-cp -r dist/* AppDir/usr/bin/
+cp -r out/make/* AppDir/usr/bin/
 cat > AppDir/usr/share/applications/studio.desktop << EOL
 [Desktop Entry]
 Name=Studio
