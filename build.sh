@@ -39,8 +39,7 @@ StartupWMClass=Studio
 MimeType=text/html;
 EOL
 
-# Download and copy icon
-wget -O AppDir/usr/share/icons/hicolor/256x256/apps/com.automattic.Studio.png https://raw.githubusercontent.com/Automattic/studio/main/assets/icon.png
+# Copy icon to root of AppDir
 cp AppDir/usr/share/icons/hicolor/256x256/apps/com.automattic.Studio.png AppDir/
 
 cat > AppDir/AppRun << EOL
