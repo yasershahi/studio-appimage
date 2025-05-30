@@ -17,7 +17,7 @@ cd studio
 
 # Install dependencies and build
 npm install
-npm run make
+npm run package
 
 # Create AppDir structure
 mkdir -p AppDir/usr/bin
