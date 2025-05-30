@@ -20,10 +20,10 @@ npm install
 npm run make
 
 # Create AppDir structure
-mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+mkdir -p AppDir/usr/bin
 
 # Copy the built application
-cp -r out/make/* AppDir/usr/bin/
+cp -r out/Studio-linux-x64/* AppDir/usr/bin/
 
 # Create desktop file
 cat > AppDir/com.automattic.Studio.desktop << EOL
@@ -38,9 +38,6 @@ Categories=Development;WebDevelopment;
 StartupWMClass=Studio
 MimeType=text/html;
 EOL
-
-# Copy icon to root of AppDir
-cp AppDir/usr/share/icons/hicolor/256x256/apps/com.automattic.Studio.png AppDir/
 
 cat > AppDir/AppRun << EOL
 #!/bin/bash
