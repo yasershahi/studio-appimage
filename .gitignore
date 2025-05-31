@@ -1,6 +1,11 @@
 # Exclude studio folder
 studio/
 
+# Build artifacts
+AppDir/
+*.AppImage
+appimagetool
+
 # Common system files
 .DS_Store
 Thumbs.db
