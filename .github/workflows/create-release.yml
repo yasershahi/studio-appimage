@@ -1,0 +1,45 @@
+name: Create Release
+
+on:
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download AppImage artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: appimage.yml
+          name: Studio.AppImage
+          path: .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: Studio-*.AppImage
+          tag_name: v1.5.2
+          name: Studio AppImage v1.5.2
+          body: |
+            Studio AppImage v1.5.2
+            
+            This is an unofficial AppImage build of [Studio by WordPress.com](https://github.com/Automattic/studio).
+            
+            ## Installation
+            1. Download the AppImage
+            2. Make it executable: `chmod +x Studio-x86_64.AppImage`
+            3. Run it: `./Studio-x86_64.AppImage`
+            
+            ## Requirements
+            - Linux operating system
+            - FUSE (required to run AppImages)
+              - For Debian/Ubuntu: `sudo apt-get install libfuse2`
+              - For Fedora: `sudo dnf install fuse`
+              - For Arch Linux: `sudo pacman -S fuse2`
+            
+            ## Disclaimer
+            This is not an official package and is not affiliated with, authorized, maintained, sponsored, or endorsed by WordPress.com or Automattic Inc. This AppImage is provided "as is", without warranty of any kind, express or implied. Use at your own risk.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
