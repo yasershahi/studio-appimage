@@ -18,6 +18,19 @@ You can download the latest Studio AppImage from the [Releases](https://github.c
    ./Studio-x86_64.AppImage
    ```
 
+### Optional: Better AppImage Management
+
+For better integration with your system and easier AppImage management, you can use [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever). Gear Lever helps you:
+- Integrate AppImages into your system menus
+- Manage multiple AppImage versions
+- Update AppImages in-place
+- Generate proper desktop entries and app metadata
+
+To install Gear Lever:
+1. Visit [Gear Lever on Flathub](https://flathub.org/apps/it.mijorus.gearlever)
+2. Click "Install" to get it from Flathub
+3. Use Gear Lever to manage your Studio AppImage
+
 ## Requirements
 
 - Linux operating system
