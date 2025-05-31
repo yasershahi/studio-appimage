@@ -1,0 +1,44 @@
+name: Build and Release
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run at 00:00 every Sunday
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build AppImage
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Create Release
+        if: success()
+        uses: softprops/action-gh-release@v1
+        with:
+          files: Studio-x86_64.AppImage
+          tag_name: v$(date +'%Y.%m.%d')
+          name: Studio AppImage $(date +'%Y-%m-%d')
+          body: |
+            Weekly build of Studio AppImage.
+            
+            ## Changes
+            - Updated to the latest Studio version
+            
+            ## Installation
+            1. Download the AppImage
+            2. Make it executable: `chmod +x Studio-x86_64.AppImage`
+            3. Run it: `./Studio-x86_64.AppImage`
+            
+            ## Requirements
+            - Linux operating system
+            - FUSE (required to run AppImages)
+              - For Debian/Ubuntu: `sudo apt-get install libfuse2`
+              - For Fedora: `sudo dnf install fuse`
+              - For Arch Linux: `sudo pacman -S fuse2`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
