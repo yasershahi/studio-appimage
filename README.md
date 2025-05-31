@@ -45,7 +45,7 @@ To install Gear Lever:
 
 ## Updates
 
-The AppImage is automatically built every week to ensure you have the latest version of Studio. You can download the latest version from the [Releases](https://github.com/yasershahi/studio-appimage/releases) page.
+This AppImage is automatically built whenever a new version of Studio is released. Each release follows the same version number as the official Studio release (e.g., v1.5.2). You can download the latest version from the [Releases](https://github.com/yasershahi/studio-appimage/releases) page.
 
 ## Support
 
