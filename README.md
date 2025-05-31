@@ -56,4 +56,8 @@ If you encounter any issues:
 
 ## License
 
-This project is licensed under the GPL-2.0 license, the same as the original Studio project. 
+This project is licensed under the GPL-2.0 license, the same as the original Studio project.
+
+## Disclaimer
+
+This is not an official package and is not affiliated with, authorized, maintained, sponsored, or endorsed by WordPress.com or Automattic Inc. This AppImage is provided "as is", without warranty of any kind, express or implied. Use at your own risk. 
