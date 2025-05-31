@@ -2,10 +2,6 @@
 
 This repository provides an AppImage package of [Studio by WordPress.com](https://github.com/Automattic/studio) for Linux users. Studio is a desktop application for creating local WordPress environments, powered by WordPress.com and WordPress Playground.
 
-## Download
-
-You can download the latest Studio AppImage from the [Releases](https://github.com/yasershahi/studio-appimage/releases) page.
-
 ## Installation
 
 1. Download the latest `Studio-x86_64.AppImage` from the [Releases](https://github.com/yasershahi/studio-appimage/releases) page
