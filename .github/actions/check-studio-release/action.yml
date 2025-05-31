@@ -1,0 +1,30 @@
+name: 'Check Studio Release'
+description: 'Check if there is a new Studio release'
+inputs:
+  current_version:
+    description: 'Current version of Studio'
+    required: true
+outputs:
+  new_release:
+    description: 'Whether there is a new release'
+    value: ${{ steps.check.outputs.new_release }}
+  version:
+    description: 'Latest version number'
+    value: ${{ steps.check.outputs.version }}
+runs:
+  using: "composite"
+  steps:
+    - name: Check for new release
+      id: check
+      shell: bash
+      run: |
+        LATEST_VERSION=$(curl -s https://api.github.com/repos/Automattic/studio/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+        CURRENT_VERSION="${{ inputs.current_version }}"
+        
+        if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
+          echo "new_release=true" >> $GITHUB_OUTPUT
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+        else
+          echo "new_release=false" >> $GITHUB_OUTPUT
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        fi 

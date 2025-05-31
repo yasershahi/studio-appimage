@@ -2,11 +2,25 @@ name: Build and Release
 
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Run at 00:00 every Sunday
+    - cron: '0 0 * * *'  # Run daily to check for new releases
   workflow_dispatch:  # Allow manual triggers
 
 jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    outputs:
+      new_release: ${{ steps.check.outputs.new_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Check for new Studio release
+        id: check
+        uses: ./.github/actions/check-studio-release
+        with:
+          current_version: ${{ github.event.repository.default_branch == 'main' && '1.5.2' || '0.0.0' }}
+
   build:
+    needs: check-release
+    if: needs.check-release.outputs.new_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,13 +35,12 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: Studio-x86_64.AppImage
-          tag_name: v$(date +'%Y.%m.%d')
-          name: Studio AppImage $(date +'%Y-%m-%d')
+          tag_name: v${{ needs.check-release.outputs.version }}
+          name: Studio AppImage v${{ needs.check-release.outputs.version }}
           body: |
-            Weekly build of Studio AppImage.
+            Studio AppImage v${{ needs.check-release.outputs.version }}
             
-            ## Changes
-            - Updated to the latest Studio version
+            This is an unofficial AppImage build of [Studio by WordPress.com](https://github.com/Automattic/studio).
             
             ## Installation
             1. Download the AppImage
@@ -40,5 +53,8 @@ jobs:
               - For Debian/Ubuntu: `sudo apt-get install libfuse2`
               - For Fedora: `sudo dnf install fuse`
               - For Arch Linux: `sudo pacman -S fuse2`
+            
+            ## Disclaimer
+            This is not an official package and is not affiliated with, authorized, maintained, sponsored, or endorsed by WordPress.com or Automattic Inc. This AppImage is provided "as is", without warranty of any kind, express or implied. Use at your own risk.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
