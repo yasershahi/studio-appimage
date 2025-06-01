@@ -154,11 +154,11 @@ jobs:
           name: Studio ${{ steps.version.outputs.version }}
           prerelease: ${{ github.event.inputs.prerelease && 'true' || 'false' }}
           files: Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
-          body: >-
+          body: |
             # Studio AppImage ${{ steps.version.outputs.version }}
-            
+
             This is an unofficial AppImage build of [Studio by WordPress.com](https://github.com/Automattic/studio).
-            
+
             ## Quick Start
             ```bash
             # 1. Download the AppImage
@@ -167,37 +167,49 @@ jobs:
             # 3. Run it:
             ./Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
             ```
-            
+
             ## System Requirements
             - Linux operating system
             - FUSE library
-            
+
             ### Installing FUSE
             Choose your distribution:
-            
+
             **Debian/Ubuntu**:
             ```bash
             sudo apt-get install libfuse2
             ```
-            
+
             **Fedora**:
             ```bash
             sudo dnf install fuse
             ```
-            
+
             **Arch Linux**:
             ```bash
             sudo pacman -S fuse2
             ```
-            
+
             ## Release Notes
             - Built from Studio version ${{ steps.version.outputs.version }}
             - Bundled with Node.js ${{ env.NODE_VERSION }}
             - Created on: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
-            
+
             ## Disclaimer
             This is not an official package and is not affiliated with WordPress.com or Automattic Inc.
             Provided "as is" without warranty of any kind, express or implied.
             Use at your own risk.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify Release
+        if: steps.check_release.outputs.exists != 'true'
+        run: |
+          echo "Checking if release was created..."
+          gh release view "${{ steps.version.outputs.version }}" || {
+            echo "Release was not created successfully"
+            exit 1
+          }
+          echo "Release created successfully"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
