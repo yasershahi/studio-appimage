@@ -88,10 +88,23 @@ export PATH="${HERE}/usr/bin/:${PATH}"
 export LD_LIBRARY_PATH="${HERE}/usr/lib/:${LD_LIBRARY_PATH}"
 cd "${HERE}/usr/bin"
 
-# Debug information
-echo "Running from: $HERE"
-echo "Looking for studio executable in: ${HERE}/usr/bin/"
-ls -la "${HERE}/usr/bin/"
+# Register URL scheme handler
+if [ ! -f "$HOME/.local/share/applications/studio.desktop" ]; then
+    mkdir -p "$HOME/.local/share/applications"
+    cat > "$HOME/.local/share/applications/studio.desktop" << EOL
+[Desktop Entry]
+Name=WordPress Studio
+Exec="$SELF" %u
+Icon=com.automattic.Studio
+Type=Application
+Categories=Development;
+StartupWMClass=studio
+Comment=WordPress Studio
+MimeType=x-scheme-handler/wpcom-local-dev;
+X-GNOME-UsesNotifications=true
+EOL
+    update-desktop-database "$HOME/.local/share/applications"
+fi
 
 # Handle URL scheme
 if [ "$1" != "" ]; then
