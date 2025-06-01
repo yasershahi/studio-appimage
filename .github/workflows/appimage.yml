@@ -1,4 +1,4 @@
-name: Build AppImage
+name: Studio AppImage Builder
 
 on:
   push:
@@ -6,9 +6,30 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # Daily check for updates
+
+env:
+  STUDIO_REPO: Automattic/studio
+  APP_NAME: Studio
+  APP_ID: com.automattic.Studio
 
 jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    outputs:
+      new_release: ${{ steps.check.outputs.new_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Check for new release
+        id: check
+        uses: ./.github/actions/check-studio-release
+        with:
+          current_version: ${{ github.event.repository.default_branch == 'main' && github.ref == 'refs/heads/main' && 'v0.0.0' || 'v0.0.0' }}
+
   build:
+    needs: check-update
+    if: needs.check-update.outputs.new_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,7 +37,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
+          cache: 'npm'
           
       - name: Install dependencies
         run: |
@@ -31,7 +53,8 @@ jobs:
             wget \
             desktop-file-utils \
             patchelf \
-            unzip
+            unzip \
+            jq
 
       - name: Install AppImage tools
         run: |
@@ -39,34 +62,34 @@ jobs:
           chmod +x appimagetool
           sudo mv appimagetool /usr/local/bin/
 
-      - name: Clone and build Studio
+      - name: Clone Studio
         run: |
-          git clone https://github.com/Automattic/studio.git
+          git clone https://github.com/${{ env.STUDIO_REPO }}.git
+          cd studio
+          git checkout ${{ needs.check-update.outputs.version }}
+          cd ..
+
+      - name: Build Studio
+        run: |
           cd studio
           npm install
           npm run package
-          echo "Contents of out directory:"
-          ls -R out/
           cd ..
-          
-      - name: Prepare AppImage files
+
+      - name: Prepare AppImage
         run: |
-          # Create files directory
-          mkdir -p files
+          # Create AppDir structure
+          mkdir -p AppDir/usr/{bin,lib,share/{applications,icons/hicolor/256x256/apps,mime/packages}}
           
-          # Copy built files
-          cp -r studio/out/Studio-linux-x64/* files/
-          
-          # Debug: Show what was copied
-          echo "Contents of files directory:"
-          ls -la files/
+          # Copy application files
+          cp -r studio/out/Studio-linux-x64/* AppDir/usr/bin/
           
           # Create desktop file
-          cat > com.automattic.Studio.desktop << EOF
+          cat > AppDir/usr/share/applications/${{ env.APP_ID }}.desktop << EOF
           [Desktop Entry]
-          Name=WordPress Studio
+          Name=${{ env.APP_NAME }}
           Exec=studio %u
-          Icon=com.automattic.Studio
+          Icon=${{ env.APP_ID }}
           Type=Application
           Categories=Development;
           StartupWMClass=studio
@@ -75,23 +98,79 @@ jobs:
           X-GNOME-UsesNotifications=true
           EOF
           
-          # Copy icon
-          cp studio/assets/studio-app-icon.png com.automattic.Studio.png
+          # Create MIME type file
+          cat > AppDir/usr/share/mime/packages/wpcom-local-dev.xml << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+            <mime-type type="x-scheme-handler/wpcom-local-dev">
+              <comment>WordPress Studio Local Development</comment>
+              <glob pattern="*.wpcom-local-dev"/>
+            </mime-type>
+          </mime-info>
+          EOF
           
-      - name: Make build script executable
-        run: chmod +x build.sh
-        
-      - name: Build AppImage
-        run: |
-          # Debug: Show what we have before building
-          echo "Contents of current directory:"
-          ls -la
-          echo "Contents of files directory:"
-          ls -la files/
-          ./build.sh
-        
-      - name: Upload AppImage
-        uses: actions/upload-artifact@v4
+          # Copy icon
+          cp studio/assets/studio-app-icon.png AppDir/usr/share/icons/hicolor/256x256/apps/${{ env.APP_ID }}.png
+          cp studio/assets/studio-app-icon.png AppDir/${{ env.APP_ID }}.png
+          
+          # Create AppRun
+          cat > AppDir/AppRun << EOF
+          #!/bin/bash
+          set -euo pipefail
+          
+          SELF=\$(readlink -f "\$0")
+          HERE=\${SELF%/*}
+          export PATH="\${HERE}/usr/bin/:\${PATH}"
+          export LD_LIBRARY_PATH="\${HERE}/usr/lib/:\${LD_LIBRARY_PATH}"
+          cd "\${HERE}/usr/bin"
+          
+          # Register URL scheme handler
+          if [ ! -f "\$HOME/.local/share/applications/${{ env.APP_ID }}.desktop" ]; then
+              mkdir -p "\$HOME/.local/share/applications"
+              cat > "\$HOME/.local/share/applications/${{ env.APP_ID }}.desktop" << EOL
+          [Desktop Entry]
+          Name=${{ env.APP_NAME }}
+          Exec="\$SELF" %u
+          Icon=${{ env.APP_ID }}
+          Type=Application
+          Categories=Development;
+          StartupWMClass=studio
+          Comment=WordPress Studio
+          MimeType=x-scheme-handler/wpcom-local-dev;
+          X-GNOME-UsesNotifications=true
+          EOL
+              update-desktop-database "\$HOME/.local/share/applications"
+          fi
+          
+          # Handle URL scheme
+          if [ "\$1" != "" ]; then
+              exec "\${HERE}/usr/bin/studio" "\$1"
+          else
+              exec "\${HERE}/usr/bin/studio"
+          fi
+          EOF
+          
+          chmod +x AppDir/AppRun
+          
+          # Download runtime
+          wget -O runtime https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-x86_64
+          
+          # Create AppImage
+          ARCH=x86_64 appimagetool --appimage-extract-and-run AppDir ${{ env.APP_NAME }}-x86_64.AppImage
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: Studio.AppImage
-          path: Studio-*.AppImage 
+          files: ${{ env.APP_NAME }}-x86_64.AppImage
+          tag_name: ${{ needs.check-update.outputs.version }}
+          name: ${{ env.APP_NAME }} ${{ needs.check-update.outputs.version }}
+          body: |
+            New ${{ env.APP_NAME }} release ${{ needs.check-update.outputs.version }}
+            
+            Changes:
+            - Updated to ${{ env.APP_NAME }} ${{ needs.check-update.outputs.version }}
+            - Improved AppImage packaging
+            - Better system integration
+            - Enhanced URL scheme handling
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
