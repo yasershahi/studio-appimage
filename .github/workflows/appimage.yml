@@ -57,7 +57,7 @@ jobs:
             libgtk-3-dev \
             libnss3 \
             libxss1 \
-            libasound2 \
+            libasound2t64 \
             libxtst6 \
             libx11-xcb-dev \
             libdrm-dev \
