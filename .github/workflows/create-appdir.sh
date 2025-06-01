@@ -50,7 +50,13 @@ export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
 # Create necessary directories and config file
 CONFIG_DIR="${HOME}/.config/studio"
+DATA_DIR="${HOME}/.local/share/studio"
+
+# Create directories with proper permissions
 mkdir -p "${CONFIG_DIR}"
+mkdir -p "${DATA_DIR}"
+chmod 755 "${CONFIG_DIR}"
+chmod 755 "${DATA_DIR}"
 
 # Create default config if it doesn't exist
 if [ ! -f "${CONFIG_DIR}/config.json" ]; then
@@ -61,14 +67,24 @@ if [ ! -f "${CONFIG_DIR}/config.json" ]; then
         "preview": {
             "enabled": true
         }
+    },
+    "paths": {
+        "data": "${HOME}/.local/share/studio"
     }
 }
 CONFIGEOF
+    chmod 644 "${CONFIG_DIR}/config.json"
 fi
 
-# Create data directory
-DATA_DIR="${HOME}/.local/share/studio"
-mkdir -p "${DATA_DIR}"
+# Create data directory structure
+mkdir -p "${DATA_DIR}/preview"
+mkdir -p "${DATA_DIR}/cache"
+chmod 755 "${DATA_DIR}/preview"
+chmod 755 "${DATA_DIR}/cache"
+
+# Set environment variables for Studio
+export STUDIO_CONFIG_DIR="${CONFIG_DIR}"
+export STUDIO_DATA_DIR="${DATA_DIR}"
 
 exec "${APPDIR}/usr/bin/studio" "$@"
 EOF
