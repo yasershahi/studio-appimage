@@ -3,11 +3,21 @@ name: Build Studio AppImage
 on:
   schedule:
     - cron: '0 3 * * *'  # Run daily at 03:00 UTC
-  workflow_dispatch:      # Allow manual triggers
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Specific version to build (e.g., v1.5.2)'
+        required: false
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
 
 env:
-  NODE_VERSION: 22    # Updated from 20 to 22 to meet requirements
-  ARTIFACTS_DIR: dist
+  NODE_VERSION: '22.12.0'  # Required by node-abi package
+  ARTIFACTS_DIR: 'out'     # Directory where electron builds the linux binary
 
 jobs:
   build-and-release:
@@ -17,19 +27,31 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get latest release version
+      - name: Get release version
         id: version
         run: |
-          latest=$(curl -s https://api.github.com/repos/Automattic/studio/releases/latest | jq -r .tag_name)
-          echo "Latest Studio version: $latest"
-          echo "version=$latest" >> $GITHUB_OUTPUT
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "Using manually specified version: ${{ github.event.inputs.version }}"
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            latest=$(curl -s https://api.github.com/repos/Automattic/studio/releases/latest | jq -r .tag_name)
+            echo "Latest Studio version: $latest"
+            echo "version=$latest" >> $GITHUB_OUTPUT
+          fi
 
       - name: Check existing release
         id: check_release
         run: |
-          if gh release view "${{ steps.version.outputs.version }}"; then
-            echo "Release already exists"
-            exit 0
+          VERSION="${{ steps.version.outputs.version }}"
+          if gh release view "$VERSION"; then
+            echo "Release $VERSION already exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              echo "Scheduled build - exiting as release exists"
+              exit 0
+            fi
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,26 +85,48 @@ jobs:
       - name: Build Studio
         run: |
           cd studio
+          echo "Installing dependencies..."
           npm ci
-          npm run dist    # Changed from "build" to "dist" as this is likely the correct script name for electron apps
+          echo "Building application..."
+          npm run build || npm run dist || {
+            echo "Error: Build failed. Checking available scripts..."
+            npm run | grep -E "build|dist"
+            exit 1
+          }
 
       - name: Create AppDir
         run: |
-          mkdir -p AppDir/usr/bin
-          cp -r studio/${{ env.ARTIFACTS_DIR }}/* AppDir/usr/bin/
+          # Check for build output
+          BUILD_DIR="studio/${{ env.ARTIFACTS_DIR }}/Studio-linux-x64"
+          if [ ! -d "$BUILD_DIR" ]; then
+            echo "Error: Build directory not found: $BUILD_DIR"
+            echo "Contents of studio/${{ env.ARTIFACTS_DIR }}:"
+            ls -la studio/${{ env.ARTIFACTS_DIR }}
+            exit 1
+          fi
+
+          # Create AppDir structure
+          mkdir -p AppDir/usr/{bin,share/{applications,icons/hicolor/256x256/apps}}
+          
+          # Copy application files
+          cp -r "$BUILD_DIR"/* AppDir/usr/bin/
           
           # Create desktop entry
-          cat > AppDir/studio.desktop << EOF
+          cat > AppDir/usr/share/applications/studio.desktop << EOF
           [Desktop Entry]
           Name=Studio
-          Exec=studio
+          Exec=studio %U
           Icon=studio
           Type=Application
           Categories=Development;
+          MimeType=x-scheme-handler/wpcom-local-dev;
+          X-AppImage-Version=${{ steps.version.outputs.version }}
           EOF
           
-          # Copy icon
-          cp studio/resources/icon.png AppDir/
+          # Copy icon and desktop file
+          cp studio/resources/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/studio.png
+          cp AppDir/usr/share/applications/studio.desktop AppDir/
+          ln -s usr/share/icons/hicolor/256x256/apps/studio.png AppDir/studio.png
 
       - name: Build AppImage
         run: |
@@ -93,10 +137,51 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: Studio ${{ steps.version.outputs.version }}
+          prerelease: ${{ github.event.inputs.prerelease }}
           body: |
-            Automated AppImage build for Studio ${{ steps.version.outputs.version }}.
+            # Studio AppImage ${{ steps.version.outputs.version }}
             
-            Download and run the AppImage to install Studio on your Linux system.
+            This is an unofficial AppImage build of [Studio by WordPress.com](https://github.com/Automattic/studio).
+            
+            ## Quick Start
+            ```bash
+            # 1. Download the AppImage
+            # 2. Make it executable:
+            chmod +x Studio-${{ steps.version.outputs.version }}.AppImage
+            # 3. Run it:
+            ./Studio-${{ steps.version.outputs.version }}.AppImage
+            ```
+            
+            ## System Requirements
+            - Linux operating system
+            - FUSE library
+            
+            ### Installing FUSE
+            Choose your distribution:
+            
+            **Debian/Ubuntu**:
+            ```bash
+            sudo apt-get install libfuse2
+            ```
+            
+            **Fedora**:
+            ```bash
+            sudo dnf install fuse
+            ```
+            
+            **Arch Linux**:
+            ```bash
+            sudo pacman -S fuse2
+            ```
+            
+            ## Release Notes
+            - Built from Studio version ${{ steps.version.outputs.version }}
+            - Created on: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+            
+            ## Disclaimer
+            This is not an official package and is not affiliated with WordPress.com or Automattic Inc.
+            Provided "as is" without warranty of any kind, express or implied.
+            Use at your own risk.
           files: Studio-${{ steps.version.outputs.version }}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
