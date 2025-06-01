@@ -148,6 +148,7 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
+        if: steps.check_release.outputs.exists != 'true'
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: Studio ${{ steps.version.outputs.version }}
@@ -197,6 +198,7 @@ jobs:
             This is not an official package and is not affiliated with WordPress.com or Automattic Inc.
             Provided "as is" without warranty of any kind, express or implied.
             Use at your own risk.
-          file: Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
+          files: |
+            Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
