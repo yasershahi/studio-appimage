@@ -1,160 +1,85 @@
-name: Build Studio AppImage
+name: Build and Release Studio AppImage
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'  # Daily check for updates
+    - cron: '0 3 * * *' # daily at 03:00 UTC
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Get latest Studio release version
+        id: get_version
+        run: |
+          latest=$(curl -s https://api.github.com/repos/Automattic/studio/releases/latest | jq -r .tag_name)
+          echo "Latest Studio version: $latest"
+          echo "version=$latest" >> $GITHUB_OUTPUT
+
+      - name: Check if this version is already released
+        id: check_release
+        run: |
+          version=${{ steps.get_version.outputs.version }}
+          if gh release view "$version"; then
+            echo "Already released. Exiting."
+            exit 0
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Studio source code
+        run: |
+          version=${{ steps.get_version.outputs.version }}
+          curl -L "https://github.com/Automattic/studio/archive/refs/tags/$version.tar.gz" -o studio.tar.gz
+          tar xzf studio.tar.gz
+          mv studio-* studio
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          
-      - name: Install dependencies
+          node-version: 20
+
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            git \
-            nodejs \
-            npm \
-            python3 \
-            python3-pip \
-            libfuse2 \
-            wget \
-            desktop-file-utils \
-            patchelf \
-            unzip \
-            jq
+          sudo apt-get install -y libgtk-3-dev libnss3 libxss1 libasound2 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev
 
-      - name: Install AppImage tools
+      - name: Install Studio dependencies
         run: |
-          wget -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
-          chmod +x appimagetool
-          sudo mv appimagetool /usr/local/bin/
-
-      - name: Get latest Studio version
-        id: version
-        run: |
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/Automattic/studio/releases/latest | jq -r '.tag_name')
-          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          echo "Found latest version: $LATEST_VERSION"
-
-      - name: Clone Studio
-        run: |
-          git clone https://github.com/Automattic/studio.git
           cd studio
-          git checkout ${{ steps.version.outputs.version }}
-          cd ..
+          npm ci
 
       - name: Build Studio
         run: |
           cd studio
-          npm install
-          npm run package
-          cd ..
+          npm run build
 
-      - name: Create AppImage
+      - name: Download AppImage tool
         run: |
-          # Create AppDir structure
-          mkdir -p AppDir/usr/{bin,lib,share/{applications,icons/hicolor/256x256/apps,mime/packages}}
-          
-          # Copy application files
-          cp -r studio/out/Studio-linux-x64/* AppDir/usr/bin/
-          
-          # Create desktop file
-          cat > AppDir/usr/share/applications/com.automattic.Studio.desktop << EOF
-          [Desktop Entry]
-          Name=WordPress Studio
-          Exec=studio %u
-          Icon=com.automattic.Studio
-          Type=Application
-          Categories=Development;
-          StartupWMClass=studio
-          Comment=WordPress Studio
-          MimeType=x-scheme-handler/wpcom-local-dev;
-          X-GNOME-UsesNotifications=true
-          EOF
-          
-          # Create MIME type file
-          cat > AppDir/usr/share/mime/packages/wpcom-local-dev.xml << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
-            <mime-type type="x-scheme-handler/wpcom-local-dev">
-              <comment>WordPress Studio Local Development</comment>
-              <glob pattern="*.wpcom-local-dev"/>
-            </mime-type>
-          </mime-info>
-          EOF
-          
-          # Copy icon
-          cp studio/assets/studio-app-icon.png AppDir/usr/share/icons/hicolor/256x256/apps/com.automattic.Studio.png
-          cp studio/assets/studio-app-icon.png AppDir/com.automattic.Studio.png
-          
-          # Create AppRun
-          cat > AppDir/AppRun << EOF
-          #!/bin/bash
-          set -euo pipefail
-          
-          SELF=\$(readlink -f "\$0")
-          HERE=\${SELF%/*}
-          export PATH="\${HERE}/usr/bin/:\${PATH}"
-          export LD_LIBRARY_PATH="\${HERE}/usr/lib/:\${LD_LIBRARY_PATH}"
-          cd "\${HERE}/usr/bin"
-          
-          # Register URL scheme handler
-          if [ ! -f "\$HOME/.local/share/applications/com.automattic.Studio.desktop" ]; then
-              mkdir -p "\$HOME/.local/share/applications"
-              cat > "\$HOME/.local/share/applications/com.automattic.Studio.desktop" << EOL
-          [Desktop Entry]
-          Name=WordPress Studio
-          Exec="\$SELF" %u
-          Icon=com.automattic.Studio
-          Type=Application
-          Categories=Development;
-          StartupWMClass=studio
-          Comment=WordPress Studio
-          MimeType=x-scheme-handler/wpcom-local-dev;
-          X-GNOME-UsesNotifications=true
-          EOL
-              update-desktop-database "\$HOME/.local/share/applications"
-          fi
-          
-          # Handle URL scheme
-          if [ "\$1" != "" ]; then
-              exec "\${HERE}/usr/bin/studio" "\$1"
-          else
-              exec "\${HERE}/usr/bin/studio"
-          fi
-          EOF
-          
-          chmod +x AppDir/AppRun
-          
-          # Download runtime
-          wget -O runtime https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-x86_64
-          
-          # Create AppImage
-          ARCH=x86_64 appimagetool --appimage-extract-and-run AppDir Studio-x86_64.AppImage
+          wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Prepare AppDir
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp -r studio/dist/* AppDir/usr/bin/
+          # Add desktop file, icon, etc. as needed
+          echo '[Desktop Entry]\nName=Studio\nExec=studio\nIcon=studio\nType=Application\nCategories=Development;' > AppDir/studio.desktop
+          cp studio/resources/icon.png AppDir/
+
+      - name: Build AppImage
+        run: |
+          ./appimagetool AppDir Studio-${{ steps.get_version.outputs.version }}.AppImage
+
+      - name: Create GitHub Release and upload AppImage
+        uses: softprops/action-gh-release@v2
         with:
-          files: Studio-x86_64.AppImage
-          tag_name: ${{ steps.version.outputs.version }}
-          name: Studio ${{ steps.version.outputs.version }}
-          body: |
-            New Studio release ${{ steps.version.outputs.version }}
-            
-            Changes:
-            - Updated to Studio ${{ steps.version.outputs.version }}
-            - Improved AppImage packaging
-            - Better system integration
-            - Enhanced URL scheme handling
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Studio ${{ steps.get_version.outputs.version }}
+          body: "Automated AppImage build for Studio ${{ steps.get_version.outputs.version }}."
+          files: Studio-${{ steps.get_version.outputs.version }}.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
