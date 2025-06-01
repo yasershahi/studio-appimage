@@ -114,30 +114,28 @@ jobs:
           cd studio
           
           # Check build directory structure
-          echo "Contents of current directory:"
-          ls -la
+          echo "Contents of dist/cli:"
+          ls -la dist/cli
           
-          if [ -d "cli/dist" ]; then
-            BUILD_DIR="cli/dist"
-          elif [ -d "dist" ]; then
-            BUILD_DIR="dist"
-          else
-            echo "Error: Could not find build directory"
-            echo "Listing all directories:"
-            find . -type d
+          BUILD_DIR="dist/cli"
+          if [ ! -d "$BUILD_DIR" ]; then
+            echo "Error: Build directory not found: $BUILD_DIR"
+            echo "Contents of dist:"
+            ls -la dist
             exit 1
           fi
           
           echo "Found build directory: $BUILD_DIR"
-          echo "Contents of build directory:"
+          echo "Contents:"
           ls -la "$BUILD_DIR"
-          cd ..
-
+          
           # Create AppDir structure
+          cd ..
           mkdir -p AppDir/usr/{bin,share/{applications,icons/hicolor/256x256/apps}}
           
           # Copy application files
-          cp -r "$BUILD_DIR"/* AppDir/usr/bin/
+          echo "Copying files from $BUILD_DIR to AppDir/usr/bin"
+          cp -r studio/"$BUILD_DIR"/* AppDir/usr/bin/
           
           # Create desktop entry
           cat > AppDir/usr/share/applications/studio.desktop << EOF
