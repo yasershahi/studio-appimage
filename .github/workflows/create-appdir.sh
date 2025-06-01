@@ -48,6 +48,28 @@ export PATH="${APPDIR}/opt/studio/bin:${PATH}"
 export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
 export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
+# Create necessary directories and config file
+CONFIG_DIR="${HOME}/.config/studio"
+mkdir -p "${CONFIG_DIR}"
+
+# Create default config if it doesn't exist
+if [ ! -f "${CONFIG_DIR}/config.json" ]; then
+    cat > "${CONFIG_DIR}/config.json" << 'CONFIGEOF'
+{
+    "version": "1.0.0",
+    "settings": {
+        "preview": {
+            "enabled": true
+        }
+    }
+}
+CONFIGEOF
+fi
+
+# Create data directory
+DATA_DIR="${HOME}/.local/share/studio"
+mkdir -p "${DATA_DIR}"
+
 exec "${APPDIR}/usr/bin/studio" "$@"
 EOF
 chmod +x $APPDIR/AppRun
