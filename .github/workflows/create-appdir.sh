@@ -46,35 +46,89 @@ if [ -d "$STUDIO_NODE_MODULES" ]; then
   cp -r $STUDIO_NODE_MODULES $APPDIR/opt/studio/app/
 fi
 
-# Create wrapper script
-cat > $APPDIR/usr/bin/studio << 'EOF'
-#!/bin/bash
-HERE="$(dirname "$(readlink -f "${0}")")"
-export APPDIR="$(dirname "$(dirname "$HERE")")"
-export PATH="${APPDIR}/opt/studio/bin:${PATH}"
-export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
-export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
-export STUDIO_CONFIG_DIR="${APPDIR}/opt/studio/config"
-export STUDIO_DATA_DIR="${APPDIR}/opt/studio/data"
-
-exec "${APPDIR}/opt/studio/bin/node" "${APPDIR}/opt/studio/app/main.js" "$@"
-EOF
-chmod +x $APPDIR/usr/bin/studio
-
 # Create AppRun
 cat > $APPDIR/AppRun << 'EOF'
 #!/bin/bash
+set -e
+
+# Set up environment
 HERE="$(dirname "$(readlink -f "${0}")")"
 export APPDIR="$HERE"
 export PATH="${APPDIR}/opt/studio/bin:${PATH}"
 export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
 export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
-export STUDIO_CONFIG_DIR="${APPDIR}/opt/studio/config"
-export STUDIO_DATA_DIR="${APPDIR}/opt/studio/data"
 
-exec "${APPDIR}/usr/bin/studio" "$@"
+# Create minimal config
+CONFIG_DIR="${HOME}/.config/studio"
+mkdir -p "${CONFIG_DIR}"
+
+# Create a minimal config file
+cat > "${CONFIG_DIR}/config.json" << 'CONFIGEOF'
+{
+    "version": "1.0.0",
+    "settings": {
+        "preview": {
+            "enabled": true
+        }
+    }
+}
+CONFIGEOF
+
+# Create data directory
+DATA_DIR="${HOME}/.local/share/studio"
+mkdir -p "${DATA_DIR}"
+
+# Set environment variables
+export STUDIO_CONFIG_DIR="${CONFIG_DIR}"
+export STUDIO_DATA_DIR="${DATA_DIR}"
+
+# Run the application
+cd "${HOME}"
+exec "${APPDIR}/opt/studio/bin/node" "${APPDIR}/opt/studio/app/main.js" "$@"
 EOF
 chmod +x $APPDIR/AppRun
+
+# Create wrapper script
+cat > $APPDIR/usr/bin/studio << 'EOF'
+#!/bin/bash
+set -e
+
+# Set up environment
+HERE="$(dirname "$(readlink -f "${0}")")"
+export APPDIR="$(dirname "$(dirname "$HERE")")"
+export PATH="${APPDIR}/opt/studio/bin:${PATH}"
+export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
+export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
+
+# Create minimal config
+CONFIG_DIR="${HOME}/.config/studio"
+mkdir -p "${CONFIG_DIR}"
+
+# Create a minimal config file
+cat > "${CONFIG_DIR}/config.json" << 'CONFIGEOF'
+{
+    "version": "1.0.0",
+    "settings": {
+        "preview": {
+            "enabled": true
+        }
+    }
+}
+CONFIGEOF
+
+# Create data directory
+DATA_DIR="${HOME}/.local/share/studio"
+mkdir -p "${DATA_DIR}"
+
+# Set environment variables
+export STUDIO_CONFIG_DIR="${CONFIG_DIR}"
+export STUDIO_DATA_DIR="${DATA_DIR}"
+
+# Run the application
+cd "${HOME}"
+exec "${APPDIR}/opt/studio/bin/node" "${APPDIR}/opt/studio/app/main.js" "$@"
+EOF
+chmod +x $APPDIR/usr/bin/studio
 
 # Create desktop entry
 cat > $APPDIR/studio.desktop << EOF
