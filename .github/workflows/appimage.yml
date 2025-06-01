@@ -75,7 +75,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update || exit 1
-          for pkg in libgtk-3-dev libnss3 libxss1 libasound2t64 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev; do
+          for pkg in libgtk-3-dev libnss3 libxss1 libasound2t64 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev imagemagick; do
             sudo apt-get install -y $pkg || {
               echo "Failed to install $pkg"
               exit 1
@@ -149,10 +149,21 @@ jobs:
           X-AppImage-Version=${{ steps.version.outputs.version }}
           EOF
           
-          # Copy icon and desktop file
-          cp studio/resources/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/studio.png
+          # Copy icon
+          if [ -f "icon.png" ]; then
+            echo "Using local icon file"
+            cp icon.png AppDir/usr/share/icons/hicolor/256x256/apps/studio.png
+          else
+            echo "Error: Icon file 'studio.png' not found"
+            exit 1
+          fi
+          
+          # Copy desktop file and create symlinks
           cp AppDir/usr/share/applications/studio.desktop AppDir/
-          ln -s usr/share/icons/hicolor/256x256/apps/studio.png AppDir/studio.png
+          ln -sf usr/share/icons/hicolor/256x256/apps/studio.png AppDir/studio.png
+          
+          # Make sure the binary is executable
+          find AppDir/usr/bin -type f -exec chmod +x {} \;
 
       - name: Build AppImage
         run: |
