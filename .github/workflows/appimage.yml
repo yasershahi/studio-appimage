@@ -26,6 +26,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clean up existing tag
+        run: |
+          if git tag -l "${{ steps.version.outputs.version }}" >/dev/null; then
+            echo "Tag ${{ steps.version.outputs.version }} exists, removing it..."
+            git tag -d "${{ steps.version.outputs.version }}" || true
+            git push origin ":refs/tags/${{ steps.version.outputs.version }}" || true
+          fi
 
       - name: Get release version
         id: version
