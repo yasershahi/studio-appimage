@@ -27,6 +27,34 @@ This repository provides an AppImage package of [Studio by WordPress.com](https:
    ./Studio-x86_64.AppImage
    ```
 
+## System Requirements
+
+### Required Dependencies
+- FUSE (required to run AppImages)
+  - For Debian/Ubuntu: `sudo apt-get install libfuse2`
+  - For Fedora: `sudo dnf install fuse`
+  - For Arch Linux: `sudo pacman -S fuse2`
+
+### Additional Dependencies
+The AppImage includes most dependencies, but some systems might need:
+- GTK3
+- GLib
+- NSS
+- X11 libraries
+- ALSA
+
+Install them with:
+```bash
+# Debian/Ubuntu
+sudo apt-get install libgtk-3-0 libglib2.0-0 libnss3 libxss1 libxtst6 libasound2
+
+# Fedora
+sudo dnf install gtk3 glib2 nss libXScrnSaver libXtst alsa-lib
+
+# Arch Linux
+sudo pacman -S gtk3 glib2 nss libxss libxtst alsa-lib
+```
+
 ## System Integration
 
 ### Using Gear Lever (Recommended)
@@ -68,14 +96,6 @@ If you prefer to integrate manually:
    update-desktop-database ~/.local/share/applications
    ```
 
-## Requirements
-
-- Linux operating system
-- FUSE (required to run AppImages)
-  - For Debian/Ubuntu: `sudo apt-get install libfuse2`
-  - For Fedora: `sudo dnf install fuse`
-  - For Arch Linux: `sudo pacman -S fuse2`
-
 ## Updates
 
 This AppImage is automatically built whenever a new version of Studio is released. The build process:
@@ -92,16 +112,45 @@ You can:
 
 ## Troubleshooting
 
-If you encounter any issues:
+### Common Issues
 
-1. Make sure you have FUSE installed
-2. Check if your system meets the requirements
-3. Try running the AppImage from the terminal to see error messages:
+1. **AppImage won't run**
+   - Make sure FUSE is installed
+   - Check if the file is executable: `chmod +x Studio-x86_64.AppImage`
+   - Try running from terminal to see errors: `./Studio-x86_64.AppImage --verbose`
+
+2. **Missing dependencies**
+   - Install required system libraries (see System Requirements)
+   - Check system logs: `journalctl -f`
+
+3. **URL scheme not working**
+   - Make sure desktop integration is working
+   - Check if the desktop file is properly installed
+   - Try reinstalling the desktop file
+
+4. **AppImage crashes on startup**
+   - Run with debug output: `./Studio-x86_64.AppImage --verbose`
+   - Check system logs: `journalctl -f`
+   - Make sure all dependencies are installed
+
+### Debug Information
+
+To get more information about issues:
+
+1. Run with verbose output:
    ```bash
    ./Studio-x86_64.AppImage --verbose
    ```
-4. Check the [Studio issues](https://github.com/Automattic/studio/issues) for known problems
-5. Open an issue on this repository
+
+2. Check system logs:
+   ```bash
+   journalctl -f
+   ```
+
+3. Test AppImage integrity:
+   ```bash
+   ./Studio-x86_64.AppImage --appimage-extract
+   ```
 
 ## Development
 
