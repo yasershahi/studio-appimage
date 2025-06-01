@@ -93,23 +93,35 @@ jobs:
             exit 1
           }
           
-          # Let's check the output directory structure
-          echo "Checking build output..."
-          ls -la ${{ env.ARTIFACTS_DIR }} || {
-            echo "Output directory not found, checking current directory..."
-            ls -la
-          }
+          # Let's check output directories
+          echo "Checking directory structure..."
+          echo "Current directory:"
+          pwd
+          ls -la
+          
+          echo -e "\nChecking possible build output locations:"
+          for dir in build out dist release; do
+            echo -e "\nChecking ./$dir:"
+            ls -la $dir 2>/dev/null || echo "Directory $dir not found"
+          done
 
       - name: Create AppDir
         run: |
-          # Check for build output
-          BUILD_DIR="studio/${{ env.ARTIFACTS_DIR }}/Studio-linux-x64"
-          if [ ! -d "$BUILD_DIR" ]; then
-            echo "Error: Build directory not found: $BUILD_DIR"
-            echo "Contents of studio/${{ env.ARTIFACTS_DIR }}:"
-            ls -la studio/${{ env.ARTIFACTS_DIR }}
+          echo "Finding build output..."
+          cd studio
+          
+          # Find the Studio binary location
+          STUDIO_BIN=$(find . -type f -name "studio" -o -name "studio-*" 2>/dev/null)
+          if [ -z "$STUDIO_BIN" ]; then
+            echo "Error: Could not find Studio binary"
+            echo "Directory structure:"
+            ls -R
             exit 1
           fi
+          
+          BUILD_DIR=$(dirname "$STUDIO_BIN")
+          echo "Found Studio in: $BUILD_DIR"
+          cd ..
 
           # Create AppDir structure
           mkdir -p AppDir/usr/{bin,share/{applications,icons/hicolor/256x256/apps}}
