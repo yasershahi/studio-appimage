@@ -125,33 +125,33 @@ jobs:
           chmod +x AppDir/usr/bin/studio
 
           # Create wrapper script
-          cat > AppDir/usr/bin/studio << EOF
+          cat > AppDir/usr/bin/studio << 'EOF'
 #!/bin/bash
-HERE="\$(dirname "\$(readlink -f "\${0}")")"
-export APPDIR="\$(dirname "\$(dirname "\$HERE")")"
-export PATH="\${APPDIR}/opt/studio/bin:\${PATH}"
-export LD_LIBRARY_PATH="\${APPDIR}/opt/studio/lib:\${APPDIR}/usr/lib:\${LD_LIBRARY_PATH:-}"
-export NODE_PATH="\${APPDIR}/opt/studio/app/node_modules"
+HERE="$(dirname "$(readlink -f "${0}")")"
+export APPDIR="$(dirname "$(dirname "$HERE")")"
+export PATH="${APPDIR}/opt/studio/bin:${PATH}"
+export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
+export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
-exec "\${APPDIR}/opt/studio/bin/node" "\${APPDIR}/opt/studio/app/main.js" "\$@"
+exec "${APPDIR}/opt/studio/bin/node" "${APPDIR}/opt/studio/app/main.js" "$@"
 EOF
           chmod +x AppDir/usr/bin/studio
 
           # Create AppRun
-          cat > AppDir/AppRun << EOF
+          cat > AppDir/AppRun << 'EOF'
 #!/bin/bash
-HERE="\$(dirname "\$(readlink -f "\${0}")")"
-export APPDIR="\$HERE"
-export PATH="\${APPDIR}/opt/studio/bin:\${PATH}"
-export LD_LIBRARY_PATH="\${APPDIR}/opt/studio/lib:\${APPDIR}/usr/lib:\${LD_LIBRARY_PATH:-}"
-export NODE_PATH="\${APPDIR}/opt/studio/app/node_modules"
+HERE="$(dirname "$(readlink -f "${0}")")"
+export APPDIR="$HERE"
+export PATH="${APPDIR}/opt/studio/bin:${PATH}"
+export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
+export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
-exec "\${APPDIR}/usr/bin/studio" "\$@"
+exec "${APPDIR}/usr/bin/studio" "$@"
 EOF
           chmod +x AppDir/AppRun
 
           # Create desktop entry
-          cat > AppDir/studio.desktop << EOF
+          cat > AppDir/studio.desktop << 'EOF'
 [Desktop Entry]
 Name=Studio
 Exec=studio %U
