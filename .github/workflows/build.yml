@@ -6,39 +6,26 @@ on:
   workflow_dispatch:  # Allow manual triggers
 
 jobs:
-  check-release:
-    runs-on: ubuntu-latest
-    outputs:
-      new_release: ${{ steps.check.outputs.new_release }}
-      version: ${{ steps.check.outputs.version }}
-    steps:
-      - name: Check for new Studio release
-        id: check
-        uses: ./.github/actions/check-studio-release
-        with:
-          current_version: ${{ github.event.repository.default_branch == 'main' && '1.5.2' || '0.0.0' }}
-
-  build:
-    needs: check-release
-    if: needs.check-release.outputs.new_release == 'true'
+  create-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build AppImage
-        run: |
-          chmod +x build.sh
-          ./build.sh
+      - name: Download AppImage artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: appimage.yml
+          name: Studio.AppImage
+          path: .
 
       - name: Create Release
-        if: success()
         uses: softprops/action-gh-release@v1
         with:
-          files: Studio-x86_64.AppImage
-          tag_name: v${{ needs.check-release.outputs.version }}
-          name: Studio AppImage v${{ needs.check-release.outputs.version }}
+          files: Studio-*.AppImage
+          tag_name: v1.5.2
+          name: Studio AppImage v1.5.2
           body: |
-            Studio AppImage v${{ needs.check-release.outputs.version }}
+            Studio AppImage v1.5.2
             
             This is an unofficial AppImage build of [Studio by WordPress.com](https://github.com/Automattic/studio).
             
