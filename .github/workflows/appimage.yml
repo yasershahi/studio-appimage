@@ -133,7 +133,8 @@ jobs:
             cp -r $STUDIO_NODE_MODULES $APPDIR/opt/studio/app/
           fi
 
-cat > $APPDIR/usr/bin/studio << 'WRAPPER_EOF'
+          # Create wrapper script
+          cat > $APPDIR/usr/bin/studio << 'WRAPPER_EOF'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 export APPDIR="$(dirname "$(dirname "$HERE")")"
@@ -143,9 +144,10 @@ export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
 exec "${APPDIR}/opt/studio/bin/node" "${APPDIR}/opt/studio/app/main.js" "$@"
 WRAPPER_EOF
-chmod +x $APPDIR/usr/bin/studio
+          chmod +x $APPDIR/usr/bin/studio
 
-cat > $APPDIR/AppRun << 'APPRUN_EOF'
+          # Create AppRun
+          cat > $APPDIR/AppRun << 'APPRUN_EOF'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 export APPDIR="$HERE"
@@ -155,7 +157,7 @@ export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
 exec "${APPDIR}/usr/bin/studio" "$@"
 APPRUN_EOF
-chmod +x $APPDIR/AppRun
+          chmod +x $APPDIR/AppRun
 
           # Create desktop entry
           cat > $APPDIR/studio.desktop << 'DESKTOP_EOF'
