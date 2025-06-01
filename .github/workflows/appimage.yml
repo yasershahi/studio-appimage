@@ -6,7 +6,7 @@ on:
   workflow_dispatch:      # Allow manual triggers
 
 env:
-  NODE_VERSION: 20
+  NODE_VERSION: 22    # Updated from 20 to 22 to meet requirements
   ARTIFACTS_DIR: dist
 
 jobs:
@@ -52,34 +52,19 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libnss3 \
-            libxss1 \
-            libasound2t64 \
-            libxtst6 \
-            libx11-xcb-dev \
-            libdrm-dev \
-            libgbm-dev \
-            libxcomposite-dev \
-            libxrandr-dev \
-            libxdamage-dev \
-            libxfixes-dev \
-            libxext-dev \
-            libxinerama-dev \
-            libxkbcommon-dev \
-            libxrender-dev \
-            libxshmfence-dev \
-            libx11-dev \
-            libxau-dev \
-            libxdmcp-dev
+          sudo apt-get update || exit 1
+          for pkg in libgtk-3-dev libnss3 libxss1 libasound2t64 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev; do
+            sudo apt-get install -y $pkg || {
+              echo "Failed to install $pkg"
+              exit 1
+            }
+          done
 
       - name: Build Studio
         run: |
           cd studio
           npm ci
-          npm run build
+          npm run dist    # Changed from "build" to "dist" as this is likely the correct script name for electron apps
 
       - name: Create AppDir
         run: |
