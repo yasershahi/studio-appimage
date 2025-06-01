@@ -75,7 +75,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update || exit 1
-          for pkg in libgtk-3-dev libnss3 libxss1 libasound2t64 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev imagemagick; do
+          for pkg in libgtk-3-dev libnss3 libxss1 libasound2t64 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev imagemagick fuse libfuse2; do
             sudo apt-get install -y $pkg || {
               echo "Failed to install $pkg"
               exit 1
@@ -167,7 +167,13 @@ jobs:
 
       - name: Build AppImage
         run: |
-          ./appimagetool AppDir Studio-${{ steps.version.outputs.version }}.AppImage
+          # Ensure FUSE is loaded
+          sudo modprobe fuse
+          sudo chmod 666 /dev/fuse
+          sudo chown root:$USER /dev/fuse
+          
+          # Build AppImage with debug output
+          ARCH=x86_64 ./appimagetool -v AppDir Studio-${{ steps.version.outputs.version }}.AppImage
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
