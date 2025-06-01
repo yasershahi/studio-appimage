@@ -1,62 +1,142 @@
 #!/bin/bash
+
+# Exit on error
 set -e
 
-# Store the original directory
-ORIGINAL_DIR=$(pwd)
+# Check for required files
+if [ ! -d "files" ]; then
+    echo "Error: 'files' directory not found"
+    exit 1
+fi
 
-sudo apt-get update
-sudo apt-get install -y git nodejs npm python3 python3-pip libfuse2 wget desktop-file-utils patchelf
+if [ ! -f "com.automattic.Studio.desktop" ]; then
+    echo "Error: desktop file not found"
+    exit 1
+fi
 
-# Download appimagetool to the original directory
-cd "$ORIGINAL_DIR"
-wget -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
-chmod +x appimagetool
+if [ ! -f "com.automattic.Studio.png" ]; then
+    echo "Error: icon file not found"
+    exit 1
+fi
 
-git clone https://github.com/Automattic/studio.git
-cd studio
+# Debug: Show what we have
+echo "Contents of files directory:"
+ls -la files/
 
-# Install dependencies and build
-npm install
-npm run package
+# Find the studio executable
+STUDIO_EXEC=$(find files -type f -executable -name "studio*" | head -n 1)
+if [ -z "$STUDIO_EXEC" ]; then
+    echo "Error: Could not find studio executable in files directory"
+    exit 1
+fi
+
+echo "Found studio executable at: $STUDIO_EXEC"
+STUDIO_EXEC_NAME=$(basename "$STUDIO_EXEC")
+
+# Clean up any existing AppDir
+rm -rf AppDir
 
 # Create AppDir structure
-mkdir -p AppDir/usr/bin
+mkdir -p AppDir/usr/{bin,lib,share/{applications,icons/hicolor/256x256/apps,mime/packages}}
 
-# Copy the built application
-cp -r out/Studio-linux-x64/* AppDir/usr/bin/
+# Copy application files
+echo "Copying application files..."
+cp -r files/* AppDir/usr/bin/
 
-# Create desktop file
-cat > AppDir/com.automattic.Studio.desktop << EOL
+# Make sure the executable is executable
+chmod +x AppDir/usr/bin/$STUDIO_EXEC_NAME
+
+# Create desktop file in AppDir root
+echo "Creating desktop file..."
+cat > AppDir/studio.desktop << EOF
 [Desktop Entry]
-Name=Studio
-Comment=WordPress.com Studio
-Exec=studio
+Name=WordPress Studio
+Exec=$STUDIO_EXEC_NAME %u
 Icon=com.automattic.Studio
-Terminal=false
 Type=Application
-Categories=Development;WebDevelopment;
-StartupWMClass=Studio
-MimeType=text/html;
-EOL
+Categories=Development;
+StartupWMClass=studio
+Comment=WordPress Studio
+MimeType=x-scheme-handler/wpcom-local-dev;
+X-GNOME-UsesNotifications=true
+EOF
 
-# Copy icon to AppDir root
-cp assets/studio-app-icon.png AppDir/com.automattic.Studio.png
+# Create MIME type file
+echo "Creating MIME type file..."
+cat > AppDir/usr/share/mime/packages/wpcom-local-dev.xml << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="x-scheme-handler/wpcom-local-dev">
+    <comment>WordPress Studio Local Development</comment>
+    <glob pattern="*.wpcom-local-dev"/>
+  </mime-type>
+</mime-info>
+EOF
 
-cat > AppDir/AppRun << EOL
+# Copy icon to both locations
+echo "Copying icon..."
+cp com.automattic.Studio.png AppDir/usr/share/icons/hicolor/256x256/apps/
+cp com.automattic.Studio.png AppDir/com.automattic.Studio.png
+
+# Create AppRun script
+echo "Creating AppRun script..."
+cat > AppDir/AppRun << EOF
 #!/bin/bash
 SELF=$(readlink -f "$0")
 HERE=${SELF%/*}
 export PATH="${HERE}/usr/bin/:${PATH}"
 export LD_LIBRARY_PATH="${HERE}/usr/lib/:${LD_LIBRARY_PATH}"
-exec "${HERE}/usr/bin/studio" "$@"
-EOL
+cd "${HERE}/usr/bin"
 
+# Debug information
+echo "Running from: $HERE"
+echo "Looking for studio executable in: ${HERE}/usr/bin/"
+ls -la "${HERE}/usr/bin/"
+
+# Register URL scheme handler
+if [ ! -f "$HOME/.local/share/applications/studio.desktop" ]; then
+    mkdir -p "$HOME/.local/share/applications"
+    cat > "$HOME/.local/share/applications/studio.desktop" << EOL
+[Desktop Entry]
+Name=WordPress Studio
+Exec="$SELF" %u
+Icon=com.automattic.Studio
+Type=Application
+Categories=Development;
+StartupWMClass=studio
+Comment=WordPress Studio
+MimeType=x-scheme-handler/wpcom-local-dev;
+X-GNOME-UsesNotifications=true
+EOL
+    update-desktop-database "$HOME/.local/share/applications"
+fi
+
+# Handle URL scheme
+if [ "$1" != "" ]; then
+    echo "Handling URL: $1"
+    exec "${HERE}/usr/bin/$STUDIO_EXEC_NAME" "$1"
+else
+    exec "${HERE}/usr/bin/$STUDIO_EXEC_NAME"
+fi
+EOF
+
+# Make AppRun executable
 chmod +x AppDir/AppRun
 
-# Go back to original directory to use appimagetool
-cd "$ORIGINAL_DIR"
-ARCH=x86_64 ./appimagetool studio/AppDir
+# Download AppImage runtime if not present
+if [ ! -f runtime ]; then
+    echo "Downloading AppImage runtime..."
+    wget -O runtime https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-x86_64
+fi
 
-# Cleanup
-rm -rf studio
-rm appimagetool
+# Debug: Show AppDir structure and file contents
+echo "AppDir structure:"
+ls -R AppDir
+echo "Desktop file contents:"
+cat AppDir/studio.desktop
+
+# Create the AppImage
+echo "Creating AppImage..."
+ARCH=x86_64 appimagetool AppDir Studio-x86_64.AppImage
+
+echo "Done! AppImage created: Studio-x86_64.AppImage"

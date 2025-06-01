@@ -30,13 +30,65 @@ jobs:
             libfuse2 \
             wget \
             desktop-file-utils \
-            patchelf
+            patchelf \
+            unzip
+
+      - name: Install AppImage tools
+        run: |
+          wget -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool
+          sudo mv appimagetool /usr/local/bin/
+
+      - name: Clone and build Studio
+        run: |
+          git clone https://github.com/Automattic/studio.git
+          cd studio
+          npm install
+          npm run package
+          echo "Contents of out directory:"
+          ls -R out/
+          cd ..
+          
+      - name: Prepare AppImage files
+        run: |
+          # Create files directory
+          mkdir -p files
+          
+          # Copy built files
+          cp -r studio/out/Studio-linux-x64/* files/
+          
+          # Debug: Show what was copied
+          echo "Contents of files directory:"
+          ls -la files/
+          
+          # Create desktop file
+          cat > com.automattic.Studio.desktop << EOF
+          [Desktop Entry]
+          Name=WordPress Studio
+          Exec=studio %u
+          Icon=com.automattic.Studio
+          Type=Application
+          Categories=Development;
+          StartupWMClass=studio
+          Comment=WordPress Studio
+          MimeType=x-scheme-handler/wpcom-local-dev;
+          X-GNOME-UsesNotifications=true
+          EOF
+          
+          # Copy icon
+          cp studio/assets/studio-app-icon.png com.automattic.Studio.png
           
       - name: Make build script executable
         run: chmod +x build.sh
         
-      - name: Run build script
-        run: ./build.sh
+      - name: Build AppImage
+        run: |
+          # Debug: Show what we have before building
+          echo "Contents of current directory:"
+          ls -la
+          echo "Contents of files directory:"
+          ls -la files/
+          ./build.sh
         
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
