@@ -51,7 +51,7 @@ echo "Creating desktop file..."
 cat > AppDir/studio.desktop << EOF
 [Desktop Entry]
 Name=WordPress Studio
-Exec=$STUDIO_EXEC_NAME %u
+Exec=studio %u
 Icon=com.automattic.Studio
 Type=Application
 Categories=Development;
@@ -93,24 +93,6 @@ echo "Running from: $HERE"
 echo "Looking for studio executable in: ${HERE}/usr/bin/"
 ls -la "${HERE}/usr/bin/"
 
-# Register URL scheme handler
-if [ ! -f "$HOME/.local/share/applications/studio.desktop" ]; then
-    mkdir -p "$HOME/.local/share/applications"
-    cat > "$HOME/.local/share/applications/studio.desktop" << EOL
-[Desktop Entry]
-Name=WordPress Studio
-Exec="$SELF" %u
-Icon=com.automattic.Studio
-Type=Application
-Categories=Development;
-StartupWMClass=studio
-Comment=WordPress Studio
-MimeType=x-scheme-handler/wpcom-local-dev;
-X-GNOME-UsesNotifications=true
-EOL
-    update-desktop-database "$HOME/.local/share/applications"
-fi
-
 # Handle URL scheme
 if [ "$1" != "" ]; then
     echo "Handling URL: $1"
@@ -137,6 +119,6 @@ cat AppDir/studio.desktop
 
 # Create the AppImage
 echo "Creating AppImage..."
-ARCH=x86_64 appimagetool AppDir Studio-x86_64.AppImage
+ARCH=x86_64 appimagetool --appimage-extract-and-run AppDir Studio-x86_64.AppImage
 
 echo "Done! AppImage created: Studio-x86_64.AppImage"
