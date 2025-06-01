@@ -17,7 +17,7 @@ on:
 
 env:
   NODE_VERSION: '22.12.0'  # Required by node-abi package
-  ARTIFACTS_DIR: 'out'     # Directory where electron builds the linux binary
+  ARTIFACTS_DIR: 'build'   # Directory where cli:build outputs the binary
 
 jobs:
   build-and-release:
@@ -88,10 +88,16 @@ jobs:
           echo "Installing dependencies..."
           npm ci
           echo "Building application..."
-          npm run build || npm run dist || {
-            echo "Error: Build failed. Checking available scripts..."
-            npm run | grep -E "build|dist"
+          npm run cli:build || {
+            echo "Error: Build failed"
             exit 1
+          }
+          
+          # Let's check the output directory structure
+          echo "Checking build output..."
+          ls -la ${{ env.ARTIFACTS_DIR }} || {
+            echo "Output directory not found, checking current directory..."
+            ls -la
           }
 
       - name: Create AppDir
