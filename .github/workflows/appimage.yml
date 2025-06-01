@@ -93,16 +93,19 @@ jobs:
             exit 1
           }
           
-          # Let's check output directories
-          echo "Checking directory structure..."
-          echo "Current directory:"
-          pwd
+          # Print npm scripts to see what's available
+          echo "Available npm scripts:"
+          npm run | grep -E "build|dist|cli"
+          
+          # Check directory structure after build
+          echo -e "\nChecking directory structure after build:"
+          echo "Current directory contents:"
           ls -la
           
-          echo -e "\nChecking possible build output locations:"
-          for dir in build out dist release; do
-            echo -e "\nChecking ./$dir:"
-            ls -la $dir 2>/dev/null || echo "Directory $dir not found"
+          echo -e "\nListing all build-related directories:"
+          find . -type d -name "dist" -o -name "build" -o -name "out" | while read dir; do
+            echo -e "\nContents of $dir:"
+            ls -la "$dir" 2>/dev/null
           done
 
       - name: Create AppDir
@@ -110,17 +113,24 @@ jobs:
           echo "Finding build output..."
           cd studio
           
-          # Find the Studio binary location
-          STUDIO_BIN=$(find . -type f -name "studio" -o -name "studio-*" 2>/dev/null)
-          if [ -z "$STUDIO_BIN" ]; then
-            echo "Error: Could not find Studio binary"
-            echo "Directory structure:"
-            ls -R
+          # Check build directory structure
+          echo "Contents of current directory:"
+          ls -la
+          
+          if [ -d "cli/dist" ]; then
+            BUILD_DIR="cli/dist"
+          elif [ -d "dist" ]; then
+            BUILD_DIR="dist"
+          else
+            echo "Error: Could not find build directory"
+            echo "Listing all directories:"
+            find . -type d
             exit 1
           fi
           
-          BUILD_DIR=$(dirname "$STUDIO_BIN")
-          echo "Found Studio in: $BUILD_DIR"
+          echo "Found build directory: $BUILD_DIR"
+          echo "Contents of build directory:"
+          ls -la "$BUILD_DIR"
           cd ..
 
           # Create AppDir structure
