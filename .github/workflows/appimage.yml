@@ -107,25 +107,34 @@ jobs:
 
       - name: Create AppDir
         run: |
+          set -e
+          APPDIR=AppDir
+          STUDIO_DIST=studio/dist/cli
+          STUDIO_NODE_MODULES=studio/node_modules
+          ICON_SRC=""
+          ICON_DST1="$APPDIR/usr/share/icons/hicolor/256x256/apps/studio.png"
+          ICON_DST2="$APPDIR/studio.png"
+
           echo "Creating AppDir structure..."
-          mkdir -p AppDir/{usr/{bin,lib,share/{applications,icons/hicolor/256x256/apps}},opt/studio}
+          mkdir -p $APPDIR/usr/bin
+          mkdir -p $APPDIR/usr/lib
+          mkdir -p $APPDIR/usr/share/applications
+          mkdir -p $APPDIR/usr/share/icons/hicolor/256x256/apps
+          mkdir -p $APPDIR/opt/studio/app
 
           # Copy Node.js runtime and built-in modules
           echo "Copying Node.js runtime..."
-          cp -r node-bundle/* AppDir/opt/studio/
-          
+          cp -r node-bundle/{bin,lib,include,share} $APPDIR/opt/studio/
+
           # Copy application files
           echo "Copying application files..."
-          cp -r studio/dist/cli/* AppDir/opt/studio/app/
-          cp -r studio/node_modules AppDir/opt/studio/app/
-
-          # Copy binary and make executable
-          echo "Setting up executable..."
-          cp studio/dist/cli/main.js AppDir/usr/bin/studio
-          chmod +x AppDir/usr/bin/studio
+          cp -r $STUDIO_DIST/* $APPDIR/opt/studio/app/
+          if [ -d "$STUDIO_NODE_MODULES" ]; then
+            cp -r $STUDIO_NODE_MODULES $APPDIR/opt/studio/app/
+          fi
 
           # Create wrapper script
-          cat > AppDir/usr/bin/studio << 'EOF'
+          cat > $APPDIR/usr/bin/studio << 'WRAPPER_EOF'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 export APPDIR="$(dirname "$(dirname "$HERE")")"
@@ -134,11 +143,11 @@ export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_
 export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
 exec "${APPDIR}/opt/studio/bin/node" "${APPDIR}/opt/studio/app/main.js" "$@"
-EOF
-          chmod +x AppDir/usr/bin/studio
+WRAPPER_EOF
+          chmod +x $APPDIR/usr/bin/studio
 
           # Create AppRun
-          cat > AppDir/AppRun << 'EOF'
+          cat > $APPDIR/AppRun << 'APPRUN_EOF'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 export APPDIR="$HERE"
@@ -147,11 +156,11 @@ export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_
 export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
 exec "${APPDIR}/usr/bin/studio" "$@"
-EOF
-          chmod +x AppDir/AppRun
+APPRUN_EOF
+          chmod +x $APPDIR/AppRun
 
           # Create desktop entry
-          cat > AppDir/studio.desktop << 'EOF'
+          cat > $APPDIR/studio.desktop << 'DESKTOP_EOF'
 [Desktop Entry]
 Name=Studio
 Exec=studio %U
@@ -160,16 +169,22 @@ Type=Application
 Categories=Development;
 MimeType=x-scheme-handler/wpcom-local-dev;
 X-AppImage-Version=${{ steps.version.outputs.version }}
-EOF
+DESKTOP_EOF
 
           # Copy icon
-          if [ -f "icon.png" ]; then
-            cp icon.png AppDir/usr/share/icons/hicolor/256x256/apps/studio.png
-            cp icon.png AppDir/studio.png
+          if [ -f "studio/icon.png" ]; then
+            ICON_SRC="studio/icon.png"
+          elif [ -f "icon.png" ]; then
+            ICON_SRC="icon.png"
+          fi
+
+          if [ -n "$ICON_SRC" ]; then
+            cp "$ICON_SRC" "$ICON_DST1"
+            cp "$ICON_SRC" "$ICON_DST2"
           else
             echo "Warning: Icon file not found, using default icon"
-            convert -size 256x256 xc:transparent -font DejaVu-Sans -pointsize 24 -gravity center -draw "text 0,0 'Studio'" AppDir/studio.png
-            cp AppDir/studio.png AppDir/usr/share/icons/hicolor/256x256/apps/studio.png
+            convert -size 256x256 xc:transparent -font DejaVu-Sans -pointsize 24 -gravity center -draw "text 0,0 'Studio'" "$ICON_DST2"
+            cp "$ICON_DST2" "$ICON_DST1"
           fi
 
       - name: Build AppImage
@@ -204,7 +219,7 @@ EOF
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: Studio ${{ steps.version.outputs.version }}
-          prerelease: ${{ github.event.inputs.prerelease }}
+          prerelease: ${{ github.event.inputs.prerelease && 'true' || 'false' }}
           body: |
             # Studio AppImage ${{ steps.version.outputs.version }}
             
@@ -250,6 +265,6 @@ EOF
             This is not an official package and is not affiliated with WordPress.com or Automattic Inc.
             Provided "as is" without warranty of any kind, express or implied.
             Use at your own risk.
-          files: Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
+          file: Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
