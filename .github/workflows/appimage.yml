@@ -1,35 +1,12 @@
-name: Studio AppImage Builder
+name: Build Studio AppImage
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *'  # Daily check for updates
 
-env:
-  STUDIO_REPO: Automattic/studio
-  APP_NAME: Studio
-  APP_ID: com.automattic.Studio
-
 jobs:
-  check-update:
-    runs-on: ubuntu-latest
-    outputs:
-      new_release: ${{ steps.check.outputs.new_release }}
-      version: ${{ steps.check.outputs.version }}
-    steps:
-      - name: Check for new release
-        id: check
-        uses: ./.github/actions/check-studio-release
-        with:
-          current_version: ${{ github.event_name == 'workflow_dispatch' && 'v0.0.0' || 'v0.0.0' }}
-
   build:
-    needs: check-update
-    if: needs.check-update.outputs.new_release == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,11 +39,18 @@ jobs:
           chmod +x appimagetool
           sudo mv appimagetool /usr/local/bin/
 
+      - name: Get latest Studio version
+        id: version
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/Automattic/studio/releases/latest | jq -r '.tag_name')
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Found latest version: $LATEST_VERSION"
+
       - name: Clone Studio
         run: |
-          git clone https://github.com/${{ env.STUDIO_REPO }}.git
+          git clone https://github.com/Automattic/studio.git
           cd studio
-          git checkout ${{ needs.check-update.outputs.version || 'main' }}
+          git checkout ${{ steps.version.outputs.version }}
           cd ..
 
       - name: Build Studio
@@ -76,7 +60,7 @@ jobs:
           npm run package
           cd ..
 
-      - name: Prepare AppImage
+      - name: Create AppImage
         run: |
           # Create AppDir structure
           mkdir -p AppDir/usr/{bin,lib,share/{applications,icons/hicolor/256x256/apps,mime/packages}}
@@ -85,11 +69,11 @@ jobs:
           cp -r studio/out/Studio-linux-x64/* AppDir/usr/bin/
           
           # Create desktop file
-          cat > AppDir/usr/share/applications/${{ env.APP_ID }}.desktop << EOF
+          cat > AppDir/usr/share/applications/com.automattic.Studio.desktop << EOF
           [Desktop Entry]
-          Name=${{ env.APP_NAME }}
+          Name=WordPress Studio
           Exec=studio %u
-          Icon=${{ env.APP_ID }}
+          Icon=com.automattic.Studio
           Type=Application
           Categories=Development;
           StartupWMClass=studio
@@ -110,8 +94,8 @@ jobs:
           EOF
           
           # Copy icon
-          cp studio/assets/studio-app-icon.png AppDir/usr/share/icons/hicolor/256x256/apps/${{ env.APP_ID }}.png
-          cp studio/assets/studio-app-icon.png AppDir/${{ env.APP_ID }}.png
+          cp studio/assets/studio-app-icon.png AppDir/usr/share/icons/hicolor/256x256/apps/com.automattic.Studio.png
+          cp studio/assets/studio-app-icon.png AppDir/com.automattic.Studio.png
           
           # Create AppRun
           cat > AppDir/AppRun << EOF
@@ -125,13 +109,13 @@ jobs:
           cd "\${HERE}/usr/bin"
           
           # Register URL scheme handler
-          if [ ! -f "\$HOME/.local/share/applications/${{ env.APP_ID }}.desktop" ]; then
+          if [ ! -f "\$HOME/.local/share/applications/com.automattic.Studio.desktop" ]; then
               mkdir -p "\$HOME/.local/share/applications"
-              cat > "\$HOME/.local/share/applications/${{ env.APP_ID }}.desktop" << EOL
+              cat > "\$HOME/.local/share/applications/com.automattic.Studio.desktop" << EOL
           [Desktop Entry]
-          Name=${{ env.APP_NAME }}
+          Name=WordPress Studio
           Exec="\$SELF" %u
-          Icon=${{ env.APP_ID }}
+          Icon=com.automattic.Studio
           Type=Application
           Categories=Development;
           StartupWMClass=studio
@@ -156,20 +140,19 @@ jobs:
           wget -O runtime https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-x86_64
           
           # Create AppImage
-          ARCH=x86_64 appimagetool --appimage-extract-and-run AppDir ${{ env.APP_NAME }}-x86_64.AppImage
+          ARCH=x86_64 appimagetool --appimage-extract-and-run AppDir Studio-x86_64.AppImage
 
       - name: Create Release
-        if: github.event_name == 'workflow_dispatch' || needs.check-update.outputs.new_release == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ env.APP_NAME }}-x86_64.AppImage
-          tag_name: ${{ needs.check-update.outputs.version || 'latest' }}
-          name: ${{ env.APP_NAME }} ${{ needs.check-update.outputs.version || 'Latest Build' }}
+          files: Studio-x86_64.AppImage
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Studio ${{ steps.version.outputs.version }}
           body: |
-            ${{ needs.check-update.outputs.version && format('New {0} release {1}', env.APP_NAME, needs.check-update.outputs.version) || format('Latest build of {0}', env.APP_NAME) }}
+            New Studio release ${{ steps.version.outputs.version }}
             
             Changes:
-            ${{ needs.check-update.outputs.version && format('- Updated to {0} {1}', env.APP_NAME, needs.check-update.outputs.version) || '' }}
+            - Updated to Studio ${{ steps.version.outputs.version }}
             - Improved AppImage packaging
             - Better system integration
             - Enhanced URL scheme handling
