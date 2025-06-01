@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="${DESKTOP_MIME_TYPE}">
+    <comment>${APP_NAME} Local Development</comment>
+    <glob pattern="*.wpcom-local-dev"/>
+  </mime-type>
+</mime-info> 

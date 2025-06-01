@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=${APP_NAME}
+Exec=studio %u
+Icon=${APP_ID}
+Type=Application
+Categories=${DESKTOP_CATEGORIES}
+StartupWMClass=${DESKTOP_STARTUP_WM_CLASS}
+Comment=${APP_NAME}
+MimeType=${DESKTOP_MIME_TYPE};
+X-GNOME-UsesNotifications=true 

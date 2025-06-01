@@ -15,9 +15,67 @@ This repository provides an AppImage package of [Studio by WordPress.com](https:
 - Daily checks for new Studio releases
 - Automated build and release process
 
+## Project Structure
+
+```
+.
+├── src/
+│   ├── config/         # Configuration files
+│   ├── scripts/        # Build and utility scripts
+│   └── templates/      # Template files for AppImage
+├── tests/             # Test files
+├── files/            # Application files to be packaged
+├── build.sh          # Main build script
+└── README.md         # This file
+```
+
+## Building from Source
+
+### Prerequisites
+
+1. Install required dependencies:
+   ```bash
+   # Debian/Ubuntu
+   sudo apt-get install wget fuse libfuse2
+
+   # Fedora
+   sudo dnf install wget fuse
+
+   # Arch Linux
+   sudo pacman -S wget fuse2
+   ```
+
+2. Install AppImage tools:
+   ```bash
+   wget -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+   chmod +x appimagetool
+   sudo mv appimagetool /usr/local/bin/
+   ```
+
+### Build Steps
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/studio-appimage.git
+   cd studio-appimage
+   ```
+
+2. Place the Studio application files in the `files` directory:
+   ```bash
+   mkdir -p files
+   # Copy your Studio application files here
+   ```
+
+3. Run the build script:
+   ```bash
+   ./build.sh
+   ```
+
+4. The resulting AppImage will be created as `Studio-x86_64.AppImage`
+
 ## Quick Start
 
-1. Download the latest `Studio-x86_64.AppImage` from the [Releases](https://github.com/yasershahi/studio-appimage/releases) page
+1. Download the latest `Studio-x86_64.AppImage` from the [Releases](https://github.com/yourusername/studio-appimage/releases) page
 2. Make it executable:
    ```bash
    chmod +x Studio-x86_64.AppImage
@@ -96,19 +154,30 @@ If you prefer to integrate manually:
    update-desktop-database ~/.local/share/applications
    ```
 
-## Updates
+## Development
 
-This AppImage is automatically built whenever a new version of Studio is released. The build process:
+### Project Structure
 
-1. Checks for new Studio releases daily
-2. Builds a new AppImage when updates are available
-3. Creates a GitHub Release with the new version
-4. Maintains version compatibility with official Studio releases
+- `src/config/`: Contains configuration files and constants
+- `src/scripts/`: Contains build and utility scripts
+- `src/templates/`: Contains template files for AppImage components
+- `tests/`: Contains test files
+- `files/`: Contains the application files to be packaged
 
-You can:
-- Watch this repository to get notified of new releases
-- Use Gear Lever to manage updates automatically
-- Check the [Releases](https://github.com/yasershahi/studio-appimage/releases) page manually
+### Build Process
+
+1. The build process starts from `build.sh`
+2. Configuration is loaded from `src/config/config.sh`
+3. Templates are processed from `src/templates/`
+4. The AppImage is built using AppImageKit
+5. Logs are written to `build.log`
+
+### Adding New Features
+
+1. Add new configuration variables to `src/config/config.sh`
+2. Create new templates in `src/templates/` if needed
+3. Add new build steps in `src/scripts/build.sh`
+4. Update documentation in `README.md`
 
 ## Troubleshooting
 
@@ -151,21 +220,6 @@ To get more information about issues:
    ```bash
    ./Studio-x86_64.AppImage --appimage-extract
    ```
-
-## Development
-
-This project uses:
-- GitHub Actions for automated builds
-- AppImageKit for packaging
-- Environment variables for configuration
-- Modular workflow design
-
-The build process is fully automated and includes:
-- Version checking
-- Application building
-- AppImage packaging
-- Release creation
-- System integration
 
 ## License
 
