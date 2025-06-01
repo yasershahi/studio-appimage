@@ -14,6 +14,22 @@ mkdir -p $APPDIR/usr/lib
 mkdir -p $APPDIR/usr/share/applications
 mkdir -p $APPDIR/usr/share/icons/hicolor/256x256/apps
 mkdir -p $APPDIR/opt/studio/app
+mkdir -p $APPDIR/opt/studio/config
+
+# Create default config file
+cat > $APPDIR/opt/studio/config/config.json << 'EOF'
+{
+    "version": "1.0.0",
+    "settings": {
+        "preview": {
+            "enabled": true
+        }
+    },
+    "paths": {
+        "data": "${HOME}/.local/share/studio"
+    }
+}
+EOF
 
 # Copy Node.js runtime and built-in modules
 echo "Copying Node.js runtime..."
@@ -35,6 +51,26 @@ export PATH="${APPDIR}/opt/studio/bin:${PATH}"
 export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
 export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
+# Create necessary directories
+CONFIG_DIR="${HOME}/.config/studio"
+DATA_DIR="${HOME}/.local/share/studio"
+mkdir -p "${CONFIG_DIR}"
+mkdir -p "${DATA_DIR}"
+
+# Copy config file if it doesn't exist
+if [ ! -f "${CONFIG_DIR}/config.json" ]; then
+    cp "${APPDIR}/opt/studio/config/config.json" "${CONFIG_DIR}/config.json"
+    chmod 644 "${CONFIG_DIR}/config.json"
+fi
+
+# Create data directory structure
+mkdir -p "${DATA_DIR}/preview"
+mkdir -p "${DATA_DIR}/cache"
+
+# Set environment variables
+export STUDIO_CONFIG_DIR="${CONFIG_DIR}"
+export STUDIO_DATA_DIR="${DATA_DIR}"
+
 exec "${APPDIR}/opt/studio/bin/node" "${APPDIR}/opt/studio/app/main.js" "$@"
 EOF
 chmod +x $APPDIR/usr/bin/studio
@@ -48,41 +84,23 @@ export PATH="${APPDIR}/opt/studio/bin:${PATH}"
 export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
 export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
 
-# Create necessary directories and config file
+# Create necessary directories
 CONFIG_DIR="${HOME}/.config/studio"
 DATA_DIR="${HOME}/.local/share/studio"
-
-# Create directories with proper permissions
 mkdir -p "${CONFIG_DIR}"
 mkdir -p "${DATA_DIR}"
-chmod 755 "${CONFIG_DIR}"
-chmod 755 "${DATA_DIR}"
 
-# Create default config if it doesn't exist
+# Copy config file if it doesn't exist
 if [ ! -f "${CONFIG_DIR}/config.json" ]; then
-    cat > "${CONFIG_DIR}/config.json" << 'CONFIGEOF'
-{
-    "version": "1.0.0",
-    "settings": {
-        "preview": {
-            "enabled": true
-        }
-    },
-    "paths": {
-        "data": "${HOME}/.local/share/studio"
-    }
-}
-CONFIGEOF
+    cp "${APPDIR}/opt/studio/config/config.json" "${CONFIG_DIR}/config.json"
     chmod 644 "${CONFIG_DIR}/config.json"
 fi
 
 # Create data directory structure
 mkdir -p "${DATA_DIR}/preview"
 mkdir -p "${DATA_DIR}/cache"
-chmod 755 "${DATA_DIR}/preview"
-chmod 755 "${DATA_DIR}/cache"
 
-# Set environment variables for Studio
+# Set environment variables
 export STUDIO_CONFIG_DIR="${CONFIG_DIR}"
 export STUDIO_DATA_DIR="${DATA_DIR}"
 
