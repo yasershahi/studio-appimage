@@ -1,13 +1,31 @@
 name: Create Release
 
 on:
-  workflow_dispatch:  # Allow manual triggers
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.5.2)'
+        required: true
+        default: '1.5.2'
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
+
+env:
+  APP_NAME: Studio AppImage
 
 jobs:
   create-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set version variables
+        id: version
+        run: |
+          echo "VERSION=v${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          echo "FILENAME=Studio-v${{ github.event.inputs.version }}.AppImage" >> $GITHUB_ENV
 
       - name: Download AppImage artifact
         uses: dawidd6/action-download-artifact@v2
@@ -16,30 +34,65 @@ jobs:
           name: Studio.AppImage
           path: .
 
+      - name: Validate AppImage
+        run: |
+          if [[ ! -f Studio-*.AppImage ]]; then
+            echo "Error: AppImage file not found"
+            exit 1
+          fi
+          chmod +x Studio-*.AppImage
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: Studio-*.AppImage
-          tag_name: v1.5.2
-          name: Studio AppImage v1.5.2
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.APP_NAME }} ${{ env.VERSION }}
+          prerelease: ${{ github.event.inputs.prerelease }}
           body: |
-            Studio AppImage v1.5.2
+            # ${{ env.APP_NAME }} ${{ env.VERSION }}
             
             This is an unofficial AppImage build of [Studio by WordPress.com](https://github.com/Automattic/studio).
             
-            ## Installation
-            1. Download the AppImage
-            2. Make it executable: `chmod +x Studio-x86_64.AppImage`
-            3. Run it: `./Studio-x86_64.AppImage`
+            ## Quick Start
+            ```bash
+            # 1. Download the AppImage
+            # 2. Make it executable:
+            chmod +x ${{ env.FILENAME }}
+            # 3. Run it:
+            ./${{ env.FILENAME }}
+            ```
             
-            ## Requirements
+            ## System Requirements
             - Linux operating system
-            - FUSE (required to run AppImages)
-              - For Debian/Ubuntu: `sudo apt-get install libfuse2`
-              - For Fedora: `sudo dnf install fuse`
-              - For Arch Linux: `sudo pacman -S fuse2`
+            - FUSE library for AppImage support
+            
+            ### Installing FUSE
+            Choose your distribution:
+            
+            **Debian/Ubuntu**:
+            ```bash
+            sudo apt-get install libfuse2
+            ```
+            
+            **Fedora**:
+            ```bash
+            sudo dnf install fuse
+            ```
+            
+            **Arch Linux**:
+            ```bash
+            sudo pacman -S fuse2
+            ```
             
             ## Disclaimer
-            This is not an official package and is not affiliated with, authorized, maintained, sponsored, or endorsed by WordPress.com or Automattic Inc. This AppImage is provided "as is", without warranty of any kind, express or implied. Use at your own risk.
+            This is not an official package and is not affiliated with, authorized, maintained, 
+            sponsored, or endorsed by WordPress.com or Automattic Inc. This AppImage is 
+            provided "as is", without warranty of any kind, express or implied. 
+            Use at your own risk.
+            
+            ## Release Notes
+            - Built from Studio version ${{ env.VERSION }}
+            - Created on: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

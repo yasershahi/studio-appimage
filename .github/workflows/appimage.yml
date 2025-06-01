@@ -1,85 +1,117 @@
-name: Build and Release Studio AppImage
+name: Build Studio AppImage
 
 on:
   schedule:
-    - cron: '0 3 * * *' # daily at 03:00 UTC
-  workflow_dispatch:
+    - cron: '0 3 * * *'  # Run daily at 03:00 UTC
+  workflow_dispatch:      # Allow manual triggers
+
+env:
+  NODE_VERSION: 20
+  ARTIFACTS_DIR: dist
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout this repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get latest Studio release version
-        id: get_version
+      - name: Get latest release version
+        id: version
         run: |
           latest=$(curl -s https://api.github.com/repos/Automattic/studio/releases/latest | jq -r .tag_name)
           echo "Latest Studio version: $latest"
           echo "version=$latest" >> $GITHUB_OUTPUT
 
-      - name: Check if this version is already released
+      - name: Check existing release
         id: check_release
         run: |
-          version=${{ steps.get_version.outputs.version }}
-          if gh release view "$version"; then
-            echo "Already released. Exiting."
+          if gh release view "${{ steps.version.outputs.version }}"; then
+            echo "Release already exists"
             exit 0
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download Studio source code
+      - name: Setup build environment
         run: |
-          version=${{ steps.get_version.outputs.version }}
-          curl -L "https://github.com/Automattic/studio/archive/refs/tags/$version.tar.gz" -o studio.tar.gz
+          # Download source code
+          curl -L "https://github.com/Automattic/studio/archive/refs/tags/${{ steps.version.outputs.version }}.tar.gz" -o studio.tar.gz
           tar xzf studio.tar.gz
           mv studio-* studio
 
-      - name: Set up Node.js
+          # Download AppImage tools
+          wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install build dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libnss3 libxss1 libasound2 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev
-
-      - name: Install Studio dependencies
-        run: |
-          cd studio
-          npm ci
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libnss3 \
+            libxss1 \
+            libasound2 \
+            libxtst6 \
+            libx11-xcb-dev \
+            libdrm-dev \
+            libgbm-dev \
+            libxcomposite-dev \
+            libxrandr-dev \
+            libxdamage-dev \
+            libxfixes-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxkbcommon-dev \
+            libxrender-dev \
+            libxshmfence-dev \
+            libx11-dev \
+            libxau-dev \
+            libxdmcp-dev
 
       - name: Build Studio
         run: |
           cd studio
+          npm ci
           npm run build
 
-      - name: Download AppImage tool
-        run: |
-          wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool
-
-      - name: Prepare AppDir
+      - name: Create AppDir
         run: |
           mkdir -p AppDir/usr/bin
-          cp -r studio/dist/* AppDir/usr/bin/
-          # Add desktop file, icon, etc. as needed
-          echo '[Desktop Entry]\nName=Studio\nExec=studio\nIcon=studio\nType=Application\nCategories=Development;' > AppDir/studio.desktop
+          cp -r studio/${{ env.ARTIFACTS_DIR }}/* AppDir/usr/bin/
+          
+          # Create desktop entry
+          cat > AppDir/studio.desktop << EOF
+          [Desktop Entry]
+          Name=Studio
+          Exec=studio
+          Icon=studio
+          Type=Application
+          Categories=Development;
+          EOF
+          
+          # Copy icon
           cp studio/resources/icon.png AppDir/
 
       - name: Build AppImage
         run: |
-          ./appimagetool AppDir Studio-${{ steps.get_version.outputs.version }}.AppImage
+          ./appimagetool AppDir Studio-${{ steps.version.outputs.version }}.AppImage
 
-      - name: Create GitHub Release and upload AppImage
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get_version.outputs.version }}
-          name: Studio ${{ steps.get_version.outputs.version }}
-          body: "Automated AppImage build for Studio ${{ steps.get_version.outputs.version }}."
-          files: Studio-${{ steps.get_version.outputs.version }}.AppImage
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Studio ${{ steps.version.outputs.version }}
+          body: |
+            Automated AppImage build for Studio ${{ steps.version.outputs.version }}.
+            
+            Download and run the AppImage to install Studio on your Linux system.
+          files: Studio-${{ steps.version.outputs.version }}.AppImage
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
