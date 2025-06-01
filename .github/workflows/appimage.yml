@@ -153,6 +153,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           name: Studio ${{ steps.version.outputs.version }}
           prerelease: ${{ github.event.inputs.prerelease && 'true' || 'false' }}
+          files: Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
           body: >-
             # Studio AppImage ${{ steps.version.outputs.version }}
             
@@ -198,7 +199,5 @@ jobs:
             This is not an official package and is not affiliated with WordPress.com or Automattic Inc.
             Provided "as is" without warranty of any kind, express or implied.
             Use at your own risk.
-          files: |
-            Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
