@@ -158,7 +158,6 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        if: steps.check_release.outputs.exists != 'true'
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: Studio ${{ steps.version.outputs.version }}
@@ -213,7 +212,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify Release
-        if: steps.check_release.outputs.exists != 'true'
         run: |
           echo "Checking if release was created..."
           gh release view "${{ steps.version.outputs.version }}" || {
