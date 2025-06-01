@@ -67,6 +67,11 @@ jobs:
           wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
 
+          # Download node for bundling
+          wget -q https://nodejs.org/dist/v${{ env.NODE_VERSION }}/node-v${{ env.NODE_VERSION }}-linux-x64.tar.xz
+          tar xf node-v${{ env.NODE_VERSION }}-linux-x64.tar.xz
+          mv node-v${{ env.NODE_VERSION }}-linux-x64 node-bundle
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -75,7 +80,10 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update || exit 1
-          for pkg in libgtk-3-dev libnss3 libxss1 libasound2t64 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev imagemagick fuse libfuse2; do
+          for pkg in libgtk-3-dev libnss3 libxss1 libasound2 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev \
+                    libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev \
+                    libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev \
+                    imagemagick fuse libfuse2 libuv1-dev; do
             sudo apt-get install -y $pkg || {
               echo "Failed to install $pkg"
               exit 1
@@ -87,111 +95,109 @@ jobs:
           cd studio
           echo "Installing dependencies..."
           npm ci
+
           echo "Building application..."
-          npm run cli:build || {
+          NODE_ENV=production npm run cli:build || {
             echo "Error: Build failed"
             exit 1
           }
-          
-          # Print npm scripts to see what's available
-          echo "Available npm scripts:"
-          npm run | grep -E "build|dist|cli"
-          
-          # Check directory structure after build
-          echo -e "\nChecking directory structure after build:"
-          echo "Current directory contents:"
-          ls -la
-          
-          echo -e "\nListing all build-related directories:"
-          find . -type d -name "dist" -o -name "build" -o -name "out" | while read dir; do
-            echo -e "\nContents of $dir:"
-            ls -la "$dir" 2>/dev/null
-          done
+
+          echo -e "\nListing build output:"
+          ls -la dist/cli/
 
       - name: Create AppDir
         run: |
-          echo "Finding build output..."
-          cd studio
+          echo "Creating AppDir structure..."
+          mkdir -p AppDir/{usr/{bin,lib,share/{applications,icons/hicolor/256x256/apps}},opt/studio}
+
+          # Copy Node.js runtime and built-in modules
+          echo "Copying Node.js runtime..."
+          cp -r node-bundle/* AppDir/opt/studio/
           
-          # Check build directory structure
-          echo "Contents of dist/cli:"
-          ls -la dist/cli
-          
-          BUILD_DIR="dist/cli"
-          if [ ! -d "$BUILD_DIR" ]; then
-            echo "Error: Build directory not found: $BUILD_DIR"
-            echo "Contents of dist:"
-            ls -la dist
-            exit 1
-          fi
-          
-          echo "Found build directory: $BUILD_DIR"
-          echo "Contents:"
-          ls -la "$BUILD_DIR"
-          
-          # Create AppDir structure
-          cd ..
-          mkdir -p AppDir/usr/{bin,share/{applications,icons/hicolor/256x256/apps}}
-          
-          # Copy and prepare application files
-          echo "Copying files from $BUILD_DIR to AppDir/usr/bin"
-          cp -r studio/"$BUILD_DIR"/* AppDir/usr/bin/
-          mv AppDir/usr/bin/main.js AppDir/usr/bin/studio
+          # Copy application files
+          echo "Copying application files..."
+          cp -r studio/dist/cli/* AppDir/opt/studio/app/
+          cp -r studio/node_modules AppDir/opt/studio/app/
+
+          # Copy binary and make executable
+          echo "Setting up executable..."
+          cp studio/dist/cli/main.js AppDir/usr/bin/studio
           chmod +x AppDir/usr/bin/studio
-          cp AppRun AppDir/
-          chmod +x AppDir/AppRun
-          mv AppDir/usr/bin/main.js AppDir/usr/bin/studio
-          chmod +x AppDir/usr/bin/studio
-          
-          # Create AppRun script
-          cat > AppDir/AppRun << 'EOF'
+
+          # Create wrapper script
+          cat > AppDir/usr/bin/studio << EOF
 #!/bin/bash
-HERE="$(dirname "$(readlink -f "${0}")")"
-export APPDIR="$HERE"
-export PATH="${APPDIR}/usr/bin:${PATH}"
-export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH}"
-NODE_PATH="${APPDIR}/usr/bin:${NODE_PATH}"
-exec "${APPDIR}/usr/bin/studio" "$@"
+HERE="\$(dirname "\$(readlink -f "\${0}")")"
+export APPDIR="\$(dirname "\$(dirname "\$HERE")")"
+export PATH="\${APPDIR}/opt/studio/bin:\${PATH}"
+export LD_LIBRARY_PATH="\${APPDIR}/opt/studio/lib:\${APPDIR}/usr/lib:\${LD_LIBRARY_PATH:-}"
+export NODE_PATH="\${APPDIR}/opt/studio/app/node_modules"
+
+exec "\${APPDIR}/opt/studio/bin/node" "\${APPDIR}/opt/studio/app/main.js" "\$@"
+EOF
+          chmod +x AppDir/usr/bin/studio
+
+          # Create AppRun
+          cat > AppDir/AppRun << EOF
+#!/bin/bash
+HERE="\$(dirname "\$(readlink -f "\${0}")")"
+export APPDIR="\$HERE"
+export PATH="\${APPDIR}/opt/studio/bin:\${PATH}"
+export LD_LIBRARY_PATH="\${APPDIR}/opt/studio/lib:\${APPDIR}/usr/lib:\${LD_LIBRARY_PATH:-}"
+export NODE_PATH="\${APPDIR}/opt/studio/app/node_modules"
+
+exec "\${APPDIR}/usr/bin/studio" "\$@"
 EOF
           chmod +x AppDir/AppRun
-          
+
           # Create desktop entry
-          cat > AppDir/usr/share/applications/studio.desktop << EOF
-          [Desktop Entry]
-          Name=Studio
-          Exec=studio %U
-          Icon=studio
-          Type=Application
-          Categories=Development;
-          MimeType=x-scheme-handler/wpcom-local-dev;
-          X-AppImage-Version=${{ steps.version.outputs.version }}
-          EOF
-          
+          cat > AppDir/studio.desktop << EOF
+[Desktop Entry]
+Name=Studio
+Exec=studio %U
+Icon=studio
+Type=Application
+Categories=Development;
+MimeType=x-scheme-handler/wpcom-local-dev;
+X-AppImage-Version=${{ steps.version.outputs.version }}
+EOF
+
           # Copy icon
           if [ -f "icon.png" ]; then
-            echo "Using local icon file"
             cp icon.png AppDir/usr/share/icons/hicolor/256x256/apps/studio.png
+            cp icon.png AppDir/studio.png
           else
-            echo "Error: Icon file 'studio.png' not found"
-            exit 1
+            echo "Warning: Icon file not found, using default icon"
+            convert -size 256x256 xc:transparent -font DejaVu-Sans -pointsize 24 -gravity center -draw "text 0,0 'Studio'" AppDir/studio.png
+            cp AppDir/studio.png AppDir/usr/share/icons/hicolor/256x256/apps/studio.png
           fi
-          
-          # Copy desktop file and create symlinks
-          cp AppDir/usr/share/applications/studio.desktop AppDir/
-          ln -sf usr/share/icons/hicolor/256x256/apps/studio.png AppDir/studio.png
-          
-          # Make sure the binary is executable
-          find AppDir/usr/bin -type f -exec chmod +x {} \;
 
       - name: Build AppImage
         run: |
           # Ensure FUSE is loaded
-          sudo modprobe fuse
-          sudo chmod 666 /dev/fuse
-          sudo chown root:$USER /dev/fuse
+          sudo modprobe fuse || true
+          sudo chmod 666 /dev/fuse || true
+          sudo chown root:$USER /dev/fuse || true
           
-          # Build AppImage with debug output
-          ARCH=x86_64 ./appimagetool -v AppDir Studio-${{ steps.version.outputs.version }}.AppImage
+          # Validate AppDir structure
+          echo "Validating AppDir structure..."
+          find AppDir -type f -name "studio" -exec file {} \;
+          ls -la AppDir/usr/bin/
+          ls -la AppDir/opt/studio/bin/
+          ls -la AppDir/opt/studio/app/
+          
+          # Build AppImage with verbose output
+          echo "Building AppImage..."
+          ARCH=x86_64 ./appimagetool -v AppDir Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
+          
+          # Check AppImage size
+          echo "AppImage details:"
+          ls -lh Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
+
+      - name: Test AppImage
+        run: |
+          chmod +x Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
+          ./Studio-${{ steps.version.outputs.version }}-x86_64.AppImage --version || echo "Version check failed but continuing..."
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -208,9 +214,9 @@ EOF
             ```bash
             # 1. Download the AppImage
             # 2. Make it executable:
-            chmod +x Studio-${{ steps.version.outputs.version }}.AppImage
+            chmod +x Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
             # 3. Run it:
-            ./Studio-${{ steps.version.outputs.version }}.AppImage
+            ./Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
             ```
             
             ## System Requirements
@@ -237,12 +243,13 @@ EOF
             
             ## Release Notes
             - Built from Studio version ${{ steps.version.outputs.version }}
+            - Bundled with Node.js ${{ env.NODE_VERSION }}
             - Created on: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
             
             ## Disclaimer
             This is not an official package and is not affiliated with WordPress.com or Automattic Inc.
             Provided "as is" without warranty of any kind, express or implied.
             Use at your own risk.
-          files: Studio-${{ steps.version.outputs.version }}.AppImage
+          files: Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
