@@ -26,10 +26,14 @@ cat > $APPDIR/opt/studio/config/config.json << 'EOF'
         }
     },
     "paths": {
-        "data": "${HOME}/.local/share/studio"
+        "data": "${APPDIR}/opt/studio/data"
     }
 }
 EOF
+
+# Create data directory in AppDir
+mkdir -p $APPDIR/opt/studio/data/preview
+mkdir -p $APPDIR/opt/studio/data/cache
 
 # Copy Node.js runtime and built-in modules
 echo "Copying Node.js runtime..."
@@ -50,26 +54,8 @@ export APPDIR="$(dirname "$(dirname "$HERE")")"
 export PATH="${APPDIR}/opt/studio/bin:${PATH}"
 export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
 export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
-
-# Create necessary directories
-CONFIG_DIR="${HOME}/.config/studio"
-DATA_DIR="${HOME}/.local/share/studio"
-mkdir -p "${CONFIG_DIR}"
-mkdir -p "${DATA_DIR}"
-
-# Copy config file if it doesn't exist
-if [ ! -f "${CONFIG_DIR}/config.json" ]; then
-    cp "${APPDIR}/opt/studio/config/config.json" "${CONFIG_DIR}/config.json"
-    chmod 644 "${CONFIG_DIR}/config.json"
-fi
-
-# Create data directory structure
-mkdir -p "${DATA_DIR}/preview"
-mkdir -p "${DATA_DIR}/cache"
-
-# Set environment variables
-export STUDIO_CONFIG_DIR="${CONFIG_DIR}"
-export STUDIO_DATA_DIR="${DATA_DIR}"
+export STUDIO_CONFIG_DIR="${APPDIR}/opt/studio/config"
+export STUDIO_DATA_DIR="${APPDIR}/opt/studio/data"
 
 exec "${APPDIR}/opt/studio/bin/node" "${APPDIR}/opt/studio/app/main.js" "$@"
 EOF
@@ -83,26 +69,8 @@ export APPDIR="$HERE"
 export PATH="${APPDIR}/opt/studio/bin:${PATH}"
 export LD_LIBRARY_PATH="${APPDIR}/opt/studio/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
 export NODE_PATH="${APPDIR}/opt/studio/app/node_modules"
-
-# Create necessary directories
-CONFIG_DIR="${HOME}/.config/studio"
-DATA_DIR="${HOME}/.local/share/studio"
-mkdir -p "${CONFIG_DIR}"
-mkdir -p "${DATA_DIR}"
-
-# Copy config file if it doesn't exist
-if [ ! -f "${CONFIG_DIR}/config.json" ]; then
-    cp "${APPDIR}/opt/studio/config/config.json" "${CONFIG_DIR}/config.json"
-    chmod 644 "${CONFIG_DIR}/config.json"
-fi
-
-# Create data directory structure
-mkdir -p "${DATA_DIR}/preview"
-mkdir -p "${DATA_DIR}/cache"
-
-# Set environment variables
-export STUDIO_CONFIG_DIR="${CONFIG_DIR}"
-export STUDIO_DATA_DIR="${DATA_DIR}"
+export STUDIO_CONFIG_DIR="${APPDIR}/opt/studio/config"
+export STUDIO_DATA_DIR="${APPDIR}/opt/studio/data"
 
 exec "${APPDIR}/usr/bin/studio" "$@"
 EOF
