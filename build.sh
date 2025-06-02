@@ -1,10 +1,72 @@
 #!/bin/bash
-
-# Exit on error, undefined variables, and pipe failures
 set -euo pipefail
 
-# Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION="${1:-}"
+if [ -z "$VERSION" ]; then
+    echo "Error: Version parameter required"
+    exit 1
+fi
 
-# Run the main build script
-"${SCRIPT_DIR}/src/scripts/build.sh"
+# Setup working directories
+WORK_DIR="$(pwd)/files"
+BUILD_DIR="$WORK_DIR/build"
+APPDIR="$WORK_DIR/AppDir"
+
+mkdir -p "$WORK_DIR" "$BUILD_DIR" "$APPDIR"/{usr/{bin,lib},opt/studio}
+
+# Download and extract Studio source
+echo "Downloading Studio $VERSION..."
+curl -L "https://github.com/Automattic/studio/archive/refs/tags/$VERSION.tar.gz" | tar xz -C "$BUILD_DIR"
+mv "$BUILD_DIR"/studio-* "$BUILD_DIR/studio"
+
+# Build Studio
+cd "$BUILD_DIR/studio"
+echo "Installing dependencies..."
+npm ci
+echo "Building application..."
+NODE_ENV=production npm run cli:build
+
+# Prepare AppDir
+echo "Creating AppImage structure..."
+cp -r dist/cli/* "$APPDIR/opt/studio/"
+cp -r node_modules "$APPDIR/opt/studio/"
+
+# Create wrapper script
+cat > "$APPDIR/usr/bin/studio" << 'EOF'
+#!/bin/bash
+HERE="$(dirname "$(readlink -f "${0}")")"
+export APPDIR="$(dirname "$(dirname "$HERE")")"
+export PATH="${APPDIR}/opt/studio/bin:${PATH}"
+export NODE_PATH="${APPDIR}/opt/studio/node_modules"
+exec node "${APPDIR}/opt/studio/main.js" "$@"
+EOF
+chmod +x "$APPDIR/usr/bin/studio"
+
+# Create AppRun
+ln -s usr/bin/studio "$APPDIR/AppRun"
+
+# Copy application icon
+mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps/"
+cp studio.png "$APPDIR/studio.png"
+cp studio.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/studio.png"
+
+# Create desktop entry
+cat > "$APPDIR/studio.desktop" << EOF
+[Desktop Entry]
+Name=Studio
+Exec=studio %U
+Icon=studio
+Type=Application
+Categories=Development;
+Version=$VERSION
+EOF
+
+# Download and use appimagetool
+wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+chmod +x appimagetool-x86_64.AppImage
+
+# Build final AppImage
+echo "Creating AppImage..."
+ARCH=x86_64 ./appimagetool-x86_64.AppImage "$APPDIR" "../Studio-$VERSION-x86_64.AppImage"
+
+echo "Build complete! AppImage created at: Studio-$VERSION-x86_64.AppImage"

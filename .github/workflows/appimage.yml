@@ -9,215 +9,72 @@ on:
         description: 'Specific version to build (e.g., v1.5.2)'
         required: false
         type: string
-      prerelease:
-        description: 'Mark as pre-release'
-        required: false
-        type: boolean
-        default: false
 
 env:
-  NODE_VERSION: '22.12.0'  # Required by node-abi package
-  ARTIFACTS_DIR: 'build'   # Directory where cli:build outputs the binary
+  NODE_VERSION: '22.12.0'
 
 jobs:
-  build-and-release:
+  check-and-build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Clean up existing tag
-        run: |
-          if git tag -l "${{ steps.version.outputs.version }}" >/dev/null; then
-            echo "Tag ${{ steps.version.outputs.version }} exists, removing it..."
-            git tag -d "${{ steps.version.outputs.version }}" || true
-            git push origin ":refs/tags/${{ steps.version.outputs.version }}" || true
-          fi
-
-      - name: Get release version
-        id: version
+      - uses: actions/checkout@v4
+      
+      - name: Check latest release
+        id: check
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "Using manually specified version: ${{ github.event.inputs.version }}"
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "should_build=true" >> $GITHUB_OUTPUT
           else
-            latest=$(curl -s https://api.github.com/repos/Automattic/studio/releases/latest | jq -r .tag_name)
-            echo "Latest Studio version: $latest"
+            latest=$(curl -sL https://api.github.com/repos/Automattic/studio/releases/latest | jq -r .tag_name)
+            echo "Latest upstream version: $latest"
             echo "version=$latest" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Check existing release
-        id: check_release
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          if gh release view "$VERSION"; then
-            echo "Release $VERSION already exists"
-            echo "exists=true" >> $GITHUB_OUTPUT
-            if [ "${{ github.event_name }}" = "schedule" ]; then
-              echo "Scheduled build - exiting as release exists"
-              exit 0
+            
+            if gh release view "$latest" --repo ${{ github.repository }}; then
+              echo "Release already exists, skipping build"
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            else
+              echo "New version detected, will build"
+              echo "should_build=true" >> $GITHUB_OUTPUT
             fi
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup build environment
+        if: steps.check.outputs.should_build == 'true'
         run: |
-          # Download source code
-          curl -L "https://github.com/Automattic/studio/archive/refs/tags/${{ steps.version.outputs.version }}.tar.gz" -o studio.tar.gz
-          tar xzf studio.tar.gz
-          mv studio-* studio
+          # Install system dependencies
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 fuse
 
-          # Download AppImage tools
-          wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool
-
-          # Download node for bundling
-          wget -q https://nodejs.org/dist/v${{ env.NODE_VERSION }}/node-v${{ env.NODE_VERSION }}-linux-x64.tar.xz
-          tar xf node-v${{ env.NODE_VERSION }}-linux-x64.tar.xz
-          mv node-v${{ env.NODE_VERSION }}-linux-x64 node-bundle
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update || exit 1
-          
-          # Install ALSA library first
-          sudo apt-get install -y libasound2t64 || {
-            echo "Failed to install ALSA library, trying alternative package..."
-            sudo apt-get install -y liboss4-salsa-asound2 || {
-              echo "Warning: Could not install ALSA library, continuing anyway..."
-            }
-          }
-          
-          # Install remaining dependencies
-          for pkg in libgtk-3-dev libnss3 libxss1 libxtst6 libx11-xcb-dev libdrm-dev libgbm-dev \
-                    libxcomposite-dev libxrandr-dev libxdamage-dev libxfixes-dev libxext-dev libxinerama-dev \
-                    libxkbcommon-dev libxrender-dev libxshmfence-dev libx11-dev libxau-dev libxdmcp-dev \
-                    imagemagick fuse libfuse2 libuv1-dev; do
-            sudo apt-get install -y $pkg || {
-              echo "Warning: Failed to install $pkg, continuing anyway..."
-            }
-          done
-
-      - name: Build Studio
-        run: |
-          cd studio
-          echo "Installing dependencies..."
-          npm ci
-
-          echo "Building application..."
-          NODE_ENV=production npm run cli:build || {
-            echo "Error: Build failed"
-            exit 1
-          }
-
-          echo -e "\nListing build output:"
-          ls -la dist/cli/
-
-      - name: Create AppDir
-        run: |
-          chmod +x .github/workflows/create-appdir.sh
-          .github/workflows/create-appdir.sh "${{ steps.version.outputs.version }}"
+          # Setup Node.js
+          curl -fsSL https://nodejs.org/dist/v${{ env.NODE_VERSION }}/node-v${{ env.NODE_VERSION }}-linux-x64.tar.xz | tar xJ
+          echo "$PWD/node-v${{ env.NODE_VERSION }}-linux-x64/bin" >> $GITHUB_PATH
 
       - name: Build AppImage
+        if: steps.check.outputs.should_build == 'true'
         run: |
-          # Ensure FUSE is loaded
-          sudo modprobe fuse || true
-          sudo chmod 666 /dev/fuse || true
-          sudo chown root:$USER /dev/fuse || true
-          
-          # Validate AppDir structure
-          echo "Validating AppDir structure..."
-          find AppDir -type f -name "studio" -exec file {} \;
-          ls -la AppDir/usr/bin/
-          ls -la AppDir/opt/studio/bin/
-          ls -la AppDir/opt/studio/app/
-          
-          # Build AppImage with verbose output
-          echo "Building AppImage..."
-          ARCH=x86_64 ./appimagetool -v AppDir Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
-          
-          # Check AppImage size
-          echo "AppImage details:"
-          ls -lh Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
-
-      - name: Test AppImage
-        run: |
-          chmod +x Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
-          ./Studio-${{ steps.version.outputs.version }}-x86_64.AppImage --version || echo "Version check failed but continuing..."
+          chmod +x ./build.sh
+          ./build.sh "${{ steps.check.outputs.version }}"
 
       - name: Create Release
+        if: steps.check.outputs.should_build == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: Studio ${{ steps.version.outputs.version }}
-          prerelease: ${{ github.event.inputs.prerelease && 'true' || 'false' }}
-          files: Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
+          tag_name: ${{ steps.check.outputs.version }}
+          name: Studio ${{ steps.check.outputs.version }}
+          files: Studio-*.AppImage
           body: |
-            # Studio AppImage ${{ steps.version.outputs.version }}
-
-            This is an unofficial AppImage build of [Studio by WordPress.com](https://github.com/Automattic/studio).
-
-            ## Quick Start
-            ```bash
-            # 1. Download the AppImage
-            # 2. Make it executable:
-            chmod +x Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
-            # 3. Run it:
-            ./Studio-${{ steps.version.outputs.version }}-x86_64.AppImage
-            ```
-
+            AppImage build of Studio ${{ steps.check.outputs.version }}
+            
             ## System Requirements
-            - Linux operating system
-            - FUSE library
-
-            ### Installing FUSE
-            Choose your distribution:
-
-            **Debian/Ubuntu**:
-            ```bash
-            sudo apt-get install libfuse2
-            ```
-
-            **Fedora**:
-            ```bash
-            sudo dnf install fuse
-            ```
-
-            **Arch Linux**:
-            ```bash
-            sudo pacman -S fuse2
-            ```
-
-            ## Release Notes
-            - Built from Studio version ${{ steps.version.outputs.version }}
-            - Bundled with Node.js ${{ env.NODE_VERSION }}
-            - Created on: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
-
-            ## Disclaimer
-            This is not an official package and is not affiliated with WordPress.com or Automattic Inc.
-            Provided "as is" without warranty of any kind, express or implied.
-            Use at your own risk.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify Release
-        run: |
-          echo "Checking if release was created..."
-          gh release view "${{ steps.version.outputs.version }}" || {
-            echo "Release was not created successfully"
-            exit 1
-          }
-          echo "Release created successfully"
+            - Linux x86_64
+            - FUSE2
+            
+            ## Installation
+            1. Download the AppImage
+            2. `chmod +x Studio-*.AppImage`
+            3. Run it!
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
