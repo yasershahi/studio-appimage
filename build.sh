@@ -71,7 +71,8 @@ Icon=studio
 Type=Application
 Categories=Development;
 MimeType=x-scheme-handler/wpcom-local-dev;
-Version=$VERSION
+Version=1.0
+X-AppImage-Version=$VERSION
 EOF
 
 echo "=== Building AppImage ==="
