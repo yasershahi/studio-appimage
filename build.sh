@@ -31,24 +31,12 @@ echo "Creating AppImage structure..."
 cp -r dist/cli/* "$APPDIR/opt/studio/"
 cp -r node_modules "$APPDIR/opt/studio/"
 
-# Create wrapper script
-cat > "$APPDIR/usr/bin/studio" << 'EOF'
-#!/bin/bash
-HERE="$(dirname "$(readlink -f "${0}")")"
-export APPDIR="$(dirname "$(dirname "$HERE")")"
-export PATH="${APPDIR}/opt/studio/bin:${PATH}"
-export NODE_PATH="${APPDIR}/opt/studio/node_modules"
-exec node "${APPDIR}/opt/studio/main.js" "$@"
-EOF
-chmod +x "$APPDIR/usr/bin/studio"
-
-# Create AppRun
-ln -s usr/bin/studio "$APPDIR/AppRun"
-
 # Copy application icon
+echo "Copying application icon..."
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps/"
-cp studio.png "$APPDIR/studio.png"
-cp studio.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/studio.png"
+cp "$SCRIPT_DIR/studio.png" "$APPDIR/studio.png"
+cp "$SCRIPT_DIR/studio.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/studio.png"
 
 # Create desktop entry
 cat > "$APPDIR/studio.desktop" << EOF
