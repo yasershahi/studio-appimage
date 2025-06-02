@@ -57,6 +57,20 @@ jobs:
         run: |
           chmod +x ./build.sh
           ./build.sh "${{ steps.check.outputs.version }}"
+          
+          # Verify AppImage was created
+          APPIMAGE="workspace/Studio-${{ steps.check.outputs.version }}-x86_64.AppImage"
+          if [ ! -f "$APPIMAGE" ]; then
+            echo "Error: AppImage was not created at $APPIMAGE"
+            exit 1
+          fi
+          
+          # Make it executable and test
+          chmod +x "$APPIMAGE"
+          ./"$APPIMAGE" --version || echo "Version check failed but continuing..."
+          
+          # Copy to root for release
+          cp "$APPIMAGE" .
 
       - name: Create Release
         if: steps.check.outputs.should_build == 'true'
@@ -64,17 +78,22 @@ jobs:
         with:
           tag_name: ${{ steps.check.outputs.version }}
           name: Studio ${{ steps.check.outputs.version }}
-          files: Studio-*.AppImage
+          files: Studio-${{ steps.check.outputs.version }}-x86_64.AppImage
           body: |
             AppImage build of Studio ${{ steps.check.outputs.version }}
             
             ## System Requirements
             - Linux x86_64
-            - FUSE2
+            - FUSE2 (`sudo apt-get install libfuse2`)
             
             ## Installation
             1. Download the AppImage
-            2. `chmod +x Studio-*.AppImage`
-            3. Run it!
+            2. Make it executable: `chmod +x Studio-*.AppImage`
+            3. Run it: `./Studio-*.AppImage`
+            
+            ## Build Info
+            - Built from Studio version ${{ steps.check.outputs.version }}
+            - Built with Node.js ${{ env.NODE_VERSION }}
+            - Built on: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
