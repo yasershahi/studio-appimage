@@ -62,7 +62,7 @@ The AppImage will be created in `workspace/Studio-v1.5.2-x86_64.AppImage`.
 
 ## 📝 License
 
-This packaging project is provided under GPL License. Studio itself is licensed under [GNU GPL v2](https://github.com/Automattic/studio/blob/trunk/LICENSE).
+This packaging project is provided under GNU General Public License v3.0. Studio itself is licensed under [GNU GPL v2](https://github.com/Automattic/studio/blob/trunk/LICENSE).
 
 ## ⚠️ Disclaimer
 
