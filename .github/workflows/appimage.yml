@@ -94,6 +94,5 @@ jobs:
             ## Build Info
             - Built from Studio version ${{ steps.check.outputs.version }}
             - Built with Node.js ${{ env.NODE_VERSION }}
-            - Built on: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

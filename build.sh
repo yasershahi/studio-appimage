@@ -32,27 +32,21 @@ echo "=== Building Studio ==="
 cd studio-src
 export PATH="$WORK_DIR/node/bin:$PATH"
 npm ci
-NODE_ENV=production npm run cli:build
+npm run make package
 
 echo "=== Creating AppDir structure ==="
-# Copy Node.js runtime
-cp -r "$WORK_DIR/node/bin" "$APPDIR/opt/studio/"
-cp -r "$WORK_DIR/node/lib" "$APPDIR/opt/studio/"
-
-# Copy Studio files
-cp -r dist/cli/* "$APPDIR/opt/studio/"
-cp -r node_modules "$APPDIR/opt/studio/"
-
-# Create wrapper script
-cat > "$APPDIR/usr/bin/studio" << 'EOF'
-#!/bin/bash
-HERE="$(dirname "$(readlink -f "${0}")")"
-export APPDIR="$(dirname "$(dirname "$HERE")")"
-export PATH="${APPDIR}/opt/studio/bin:${PATH}"
-export NODE_PATH="${APPDIR}/opt/studio/node_modules"
-exec "${APPDIR}/opt/studio/bin/node" "${APPDIR}/opt/studio/main.js" "$@"
-EOF
+# Copy Studio packaged binary and strip debug symbols
+cp out/Studio-linux-x64/Studio "$APPDIR/usr/bin/studio"
+strip --strip-all "$APPDIR/usr/bin/studio"
 chmod +x "$APPDIR/usr/bin/studio"
+
+# Remove unnecessary files
+find "$APPDIR" -name "*.a" -delete
+find "$APPDIR" -name "*.la" -delete
+find "$APPDIR" -name "*.pdb" -delete
+find "$APPDIR" -name "*.dll.lib" -delete
+find "$APPDIR" -type f -name "LICENSE*" -delete
+find "$APPDIR" -type f -name "README*" -delete
 
 # Create AppRun
 ln -sf usr/bin/studio "$APPDIR/AppRun"
@@ -79,7 +73,11 @@ echo "=== Building AppImage ==="
 cd "$WORK_DIR"
 wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
 chmod +x appimagetool-x86_64.AppImage
-ARCH=x86_64 ./appimagetool-x86_64.AppImage "$APPDIR" "Studio-$VERSION-x86_64.AppImage"
+
+# Build compressed AppImage
+export APPIMAGE_COMPRESS_TYPE="xz"
+export APPIMAGE_COMPRESS_LEVEL="9"
+ARCH=x86_64 ./appimagetool-x86_64.AppImage --comp xz "$APPDIR" "Studio-$VERSION-x86_64.AppImage"
 
 echo "=== Build Complete ==="
 echo "AppImage created at: $WORK_DIR/Studio-$VERSION-x86_64.AppImage"
