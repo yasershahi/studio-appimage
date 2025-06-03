@@ -34,10 +34,13 @@ export PATH="$WORK_DIR/node/bin:$PATH"
 npm ci
 npm run make package
 
+# Debug: List output directory
+echo "=== Checking build output ==="
+ls -la out/Studio-linux-x64/
+
 echo "=== Creating AppDir structure ==="
-# Copy Studio packaged binary and strip debug symbols
-cp out/Studio-linux-x64/Studio "$APPDIR/usr/bin/studio"
-strip --strip-all "$APPDIR/usr/bin/studio"
+# Copy all binary files from the output directory
+cp -r out/Studio-linux-x64/* "$APPDIR/usr/bin/"
 chmod +x "$APPDIR/usr/bin/studio"
 
 # Remove unnecessary files
