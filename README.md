@@ -2,27 +2,13 @@
 
 Unofficial AppImage packaging for [Studio by WordPress.com](https://github.com/Automattic/studio).
 
-## 🚀 Quick Install
+## Quick Install
 
-```bash
-# Download latest release
-wget https://github.com/yasershahi/studio-appimage/releases/latest/download/Studio-*-x86_64.AppImage
+You can download the latest AppImage from the [releases page](https://github.com/yasershahi/studio-appimage/releases) and just run it!.
 
-# Make it executable
-chmod +x Studio-*-x86_64.AppImage
+Alternatively, you can use [Gear Lever](https://flathub.org/apps/com.rafaelmardojai.GearLever), a Flatpak application for managing AppImages.
 
-# Run it!
-./Studio-*-x86_64.AppImage
-```
-
-## 📋 System Requirements
-
-- Linux x86_64
-- FUSE2 library
-
-### Installing FUSE
-
-Choose your distribution:
+If AppImages do not run on your system, you might be missing `fuse` (Filesystem in Userspace). Install it using your distribution's package manager:
 
 ```bash
 # Debian/Ubuntu
@@ -35,7 +21,7 @@ sudo dnf install fuse
 sudo pacman -S fuse2
 ```
 
-## 🛠️ Building Locally
+## Building Locally
 
 If you want to build the AppImage yourself:
 
@@ -53,17 +39,13 @@ chmod +x build.sh
 
 The AppImage will be created in `workspace/Studio-v1.5.2-x86_64.AppImage`.
 
-## ⚡ Features
+## Features
 
 - Standalone application - no installation required
 - Includes all dependencies
 - Auto-updates via GitHub releases
 - XZ compressed for smaller file size
 
-## 📝 License
-
-This packaging project is provided under GNU General Public License v3.0. Studio itself is licensed under [GNU GPL v2](https://github.com/Automattic/studio/blob/trunk/LICENSE).
-
-## ⚠️ Disclaimer
+## Disclaimer
 
 This is not an official package and is not affiliated with WordPress.com or Automattic Inc.
