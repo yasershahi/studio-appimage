@@ -70,12 +70,16 @@ Categories=Development;
 MimeType=x-scheme-handler/wpcom-local-dev;
 Version=1.0
 X-AppImage-Version=$VERSION
+X-AppImage-UpdateInformation=github-releases-with-tag-based-channels:Automattic/studio
 EOF
 
 echo "=== Building AppImage ==="
 cd "$WORK_DIR"
 wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
 chmod +x appimagetool-x86_64.AppImage
+
+# Set update information for AppImage
+export UPDATE_INFORMATION="github-releases-with-tag-based-channels:Automattic/studio"
 
 # Build compressed AppImage
 export APPIMAGE_COMPRESS_TYPE="xz"
