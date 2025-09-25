@@ -37,7 +37,12 @@ npm prune --production # Remove development dependencies
 
 # Patch Studio source to disable native title bar
 echo "=== Patching Studio to disable native title bar ==="
-sed -i '/new BrowserWindow({/a \ \ \ \ \ \ \ \ frame: false,' studio-src/main.js || echo "Warning: Could not patch main.js for title bar. Manual intervention may be required."
+MAIN_JS_PATH=$(jq -r '.main' studio-src/package.json)
+if [ -f "studio-src/$MAIN_JS_PATH" ]; then
+    sed -i '/new BrowserWindow({/a \ \ \ \ \ \ \ \ frame: false,' "studio-src/$MAIN_JS_PATH" || echo "Warning: Could not patch $MAIN_JS_PATH for title bar. Manual intervention may be required."
+else
+    echo "Warning: Could not find main entry point at studio-src/$MAIN_JS_PATH. Manual intervention may be required."
+fi
 
 # Debug: List output directory
 echo "=== Checking build output ==="
