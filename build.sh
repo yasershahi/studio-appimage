@@ -35,6 +35,10 @@ npm ci
 npm run make package
 npm prune --production # Remove development dependencies
 
+# Patch Studio source to disable native title bar
+echo "=== Patching Studio to disable native title bar ==="
+sed -i '/new BrowserWindow({/a \ \ \ \ \ \ \ \ frame: false,' studio-src/main.js || echo "Warning: Could not patch main.js for title bar. Manual intervention may be required."
+
 # Debug: List output directory
 echo "=== Checking build output ==="
 ls -la out/Studio-linux-x64/
