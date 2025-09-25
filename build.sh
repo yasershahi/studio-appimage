@@ -33,6 +33,7 @@ cd studio-src
 export PATH="$WORK_DIR/node/bin:$PATH"
 npm ci
 npm run make package
+npm prune --production # Remove development dependencies
 
 # Debug: List output directory
 echo "=== Checking build output ==="
