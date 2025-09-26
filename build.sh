@@ -35,15 +35,6 @@ npm ci
 npm run make package
 npm prune --production # Remove development dependencies
 
-# Patch Studio source to disable native title bar
-echo "=== Patching Studio to disable native title bar ==="
-MAIN_JS_PATH=$(jq -r '.main' studio-src/package.json)
-if [ -f "studio-src/$MAIN_JS_PATH" ]; then
-    sed -i '/new BrowserWindow({/a \ \ \ \ \ \ \ \ frame: false,' "studio-src/$MAIN_JS_PATH" || echo "Warning: Could not patch $MAIN_JS_PATH for title bar. Manual intervention may be required."
-else
-    echo "Warning: Could not find main entry point at studio-src/$MAIN_JS_PATH. Manual intervention may be required."
-fi
-
 # Debug: List output directory
 echo "=== Checking build output ==="
 ls -la out/Studio-linux-x64/
@@ -80,7 +71,7 @@ Categories=Development;
 MimeType=x-scheme-handler/wpcom-local-dev;
 Version=1.0
 X-AppImage-Version=$VERSION
-X-AppImage-UpdateInformation=github-releases-with-tag-based-channels:Automattic/studio
+X-AppImage-UpdateInformation=github-releases-with-tag-based-channels:yasershahi/studio-appimage
 EOF
 
 echo "=== Building AppImage ==="
@@ -89,7 +80,7 @@ wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/ap
 chmod +x appimagetool-x86_64.AppImage
 
 # Set update information for AppImage
-export UPDATE_INFORMATION="github-releases-with-tag-based-channels:Automattic/studio"
+export UPDATE_INFORMATION="github-releases-with-tag-based-channels:yasershahi/studio-appimage"
 
 # Build compressed AppImage
 export APPIMAGE_COMPRESS_TYPE="xz"
